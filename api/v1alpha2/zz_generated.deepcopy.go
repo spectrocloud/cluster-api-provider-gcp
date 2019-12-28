@@ -468,6 +468,11 @@ func (in *Network) DeepCopyInto(out *Network) {
 			(*out)[key] = val
 		}
 	}
+	if in.Router != nil {
+		in, out := &in.Router, &out.Router
+		*out = new(string)
+		**out = **in
+	}
 	if in.APIServerAddress != nil {
 		in, out := &in.APIServerAddress, &out.APIServerAddress
 		*out = new(string)
@@ -525,6 +530,11 @@ func (in *NetworkSpec) DeepCopyInto(out *NetworkSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.AutoCreateCloudNat != nil {
+		in, out := &in.AutoCreateCloudNat, &out.AutoCreateCloudNat
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Subnets != nil {
 		in, out := &in.Subnets, &out.Subnets
 		*out = make(Subnets, len(*in))
@@ -535,6 +545,11 @@ func (in *NetworkSpec) DeepCopyInto(out *NetworkSpec) {
 				(*in).DeepCopyInto(*out)
 			}
 		}
+	}
+	if in.LoadBalancerBackendPort != nil {
+		in, out := &in.LoadBalancerBackendPort, &out.LoadBalancerBackendPort
+		*out = new(int32)
+		**out = **in
 	}
 }
 

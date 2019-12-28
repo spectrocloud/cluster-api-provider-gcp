@@ -44,6 +44,11 @@ type Network struct {
 	// +optional
 	FirewallRules map[string]string `json:"firewallRules,omitempty"`
 
+	// Router is the full reference to the router created within the network
+	// it'll contain the cloud nat gateway
+	// +optional
+	Router *string `json:"router,omitempty"`
+
 	// APIServerAddress is the IPV4 global address assigned to the load balancer
 	// created for the API Server.
 	// +optional
@@ -92,6 +97,11 @@ type NetworkSpec struct {
 	// Defaults to true.
 	// +optional
 	AutoCreateSubnetworks *bool `json:"autoCreateSubnetworks,omitempty"`
+
+	// whether to auto create cloud nat for the VPC network
+	// Default to false.
+	// +optional
+	AutoCreateCloudNat *bool `json:"autoCreateCloudNat,omitempty"`
 
 	// Subnets configuration.
 	// +optional

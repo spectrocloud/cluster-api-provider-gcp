@@ -240,3 +240,10 @@ type ServiceAccount struct {
 	// account.
 	Scopes []string `json:"scopes,omitempty"`
 }
+
+type Bastion struct {
+	// SelfLink is the link to the Bastion node.
+	SelfLink *string `json:"selfLink,omitempty"`
+
+	GCPMachineStatus `json:",inline"`
+}

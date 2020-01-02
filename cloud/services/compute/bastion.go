@@ -118,11 +118,12 @@ func (s *Service) getDefaultBastion() *compute.Instance {
 	name := s.getDefaultBastionName()
 	zone := s.getDefaultBastionZone()
 	sourceImage := s.getDefaultBastionImage()
+	machineType := s.getDefaultBastionMachineType()
 
 	input := &compute.Instance{
 		Name:         name,
 		Zone:         zone,
-		MachineType:  fmt.Sprintf("zones/%s/machineTypes/%s", zone, "n1-standard-1"),
+		MachineType:  fmt.Sprintf("zones/%s/machineTypes/%s", zone, machineType),
 		CanIpForward: true,
 		NetworkInterfaces: []*compute.NetworkInterface{
 			{
@@ -172,4 +173,7 @@ func (s *Service) getDefaultBastionZone() string {
 }
 func (s *Service) getDefaultBastionImage() string {
 	return "projects/ubuntu-os-cloud/global/images/family/ubuntu-minimal-1804-lts"
+}
+func (s *Service) getDefaultBastionMachineType() string {
+	return "f1-micro"
 }

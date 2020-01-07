@@ -11,7 +11,9 @@ spec:
     categories:
     - cluster-api
     kind: GCPMachine
+    listKind: GCPMachineList
     plural: gcpmachines
+    singular: gcpmachine
   scope: Namespaced
   subresources:
     status: {}

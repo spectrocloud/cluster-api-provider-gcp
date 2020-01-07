@@ -11,7 +11,9 @@ spec:
     categories:
     - cluster-api
     kind: GCPMachineTemplate
+    listKind: GCPMachineTemplateList
     plural: gcpmachinetemplates
+    singular: gcpmachinetemplate
   scope: Namespaced
   validation:
     openAPIV3Schema:

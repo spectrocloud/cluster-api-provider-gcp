@@ -48,7 +48,10 @@ type GCPClusterSpec struct {
 type GCPClusterStatus struct {
 	Network Network `json:"network,omitempty"`
 
-	// Bastion Instance `json:"bastion,omitempty"`
+	// status of Bastion node
+	// +optional
+	Bastion Bastion `json:"bastion,omitempty"`
+
 	Ready bool `json:"ready"`
 
 	// APIEndpoints represents the endpoints to communicate with the control plane.

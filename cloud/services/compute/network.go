@@ -42,6 +42,12 @@ func (s *Service) ReconcileNetwork() error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to describe network")
 		}
+		autoCreateCloudNat := s.scope.GCPCluster.Spec.Network.AutoCreateCloudNat
+		if autoCreateCloudNat != nil && *autoCreateCloudNat {
+			if err := s.createCloudNat(network); err != nil {
+				return errors.Wrapf(err, "failed to create cloudnat gateway")
+			}
+		}
 	} else if err != nil {
 		return errors.Wrapf(err, "failed to describe network")
 	}
@@ -77,14 +83,88 @@ func (s *Service) DeleteNetwork() error {
 		return nil
 	}
 
+	// Delete Router.
+	router, err := s.routers.Get(s.scope.Project(), s.scope.Region(), getRouterName(s.scope.NetworkName())).Do()
+	if err == nil {
+		op, err := s.routers.Delete(s.scope.Project(), s.scope.Region(), router.Name).Do()
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete router")
+		}
+		if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
+			return errors.Wrapf(err, "failed to wait for delete router")
+		}
+	} else {
+		if !gcperrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to get router to delete")
+		}
+	}
+
 	// Delete Network.
 	op, err := s.networks.Delete(s.scope.Project(), network.Name).Do()
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete forwarding rules")
+		return errors.Wrapf(err, "failed to delete network")
 	}
 	if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-		return errors.Wrapf(err, "failed to delete forwarding rules")
+		return errors.Wrapf(err, "failed to wait delete network")
 	}
 	s.scope.GCPCluster.Spec.Network.Name = nil
 	return nil
+}
+
+func (s *Service) createCloudNat(network *compute.Network) error {
+	router, err := s.routers.Get(s.scope.Project(), s.scope.Region(), getRouterName(s.scope.NetworkName())).Do()
+	if gcperrors.IsNotFound(err) {
+		router = s.getRouterSpec(network)
+		op, err := s.routers.Insert(s.scope.Project(), s.scope.Region(), router).Do()
+		if err != nil {
+			return errors.Wrapf(err, "failed to create router")
+		}
+		if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
+			return errors.Wrapf(err, "failed to wait for create router operation")
+		}
+		router, err = s.routers.Get(s.scope.Project(), s.scope.Region(), router.Name).Do()
+		if err != nil {
+			return errors.Wrapf(err, "failed to get router after create")
+		}
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to get routers")
+	}
+
+	if len(router.Nats) == 0 {
+		router.Nats = []*compute.RouterNat{s.getRouterNatSpec()}
+		op, err := s.routers.Patch(s.scope.Project(), s.scope.Region(), router.Name, router).Do()
+		if err != nil {
+			return errors.Wrapf(err, "failed to patch router to create nat")
+		}
+		if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
+			return errors.Wrapf(err, "failed to wait for patch router operation")
+		}
+	}
+
+	s.scope.GCPCluster.Status.Network.Router = pointer.StringPtr(router.SelfLink)
+	return nil
+}
+
+func (s *Service) getRouterSpec(network *compute.Network) *compute.Router {
+	return &compute.Router{
+		Name:    getRouterName(network.Name),
+		Network: network.SelfLink,
+		Nats:    []*compute.RouterNat{s.getRouterNatSpec()},
+	}
+}
+
+func (s *Service) getRouterNatSpec() *compute.RouterNat {
+	return &compute.RouterNat{
+		Name:                          getRouterNatName(s.scope.NetworkName()),
+		NatIpAllocateOption:           "AUTO_ONLY",
+		SourceSubnetworkIpRangesToNat: "ALL_SUBNETWORKS_ALL_IP_RANGES",
+	}
+}
+
+// use network name as router name
+func getRouterName(network string) string {
+	return network
+}
+func getRouterNatName(network string) string {
+	return network
 }

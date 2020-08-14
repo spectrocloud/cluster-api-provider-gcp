@@ -40,6 +40,7 @@ type Service struct {
 	forwardingrules *compute.GlobalForwardingRulesService
 	firewalls       *compute.FirewallsService
 	routers         *compute.RoutersService
+	routes          *compute.RoutesService
 }
 
 // NewService returns a new service given the gcp api client.
@@ -57,5 +58,6 @@ func NewService(scope *scope.ClusterScope) *Service {
 		forwardingrules: scope.Compute.GlobalForwardingRules,
 		firewalls:       scope.Compute.Firewalls,
 		routers:         scope.Compute.Routers,
+		routes:          scope.Compute.Routes,
 	}
 }

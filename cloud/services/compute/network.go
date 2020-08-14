@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/api/compute/v1"
 	"k8s.io/utils/pointer"
+	"strings"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/gcperrors"
@@ -100,6 +101,26 @@ func (s *Service) DeleteNetwork() error {
 	} else {
 		if !gcperrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to get router to delete")
+		}
+	}
+
+	// Delete routes associated with network
+	filterString := fmt.Sprintf("description=k8s-node-route name=%s-*", s.scope.Name())
+	routeList, err := s.routes.List(s.scope.Project()).Filter(filterString).Do()
+	if err != nil {
+		return errors.Wrapf(err, "failed to list routes for the cluster")
+	}
+
+	for _, route := range routeList.Items {
+		if strings.HasSuffix(route.Network, network.Name) {
+			s.scope.Info("deleting route ", "route:", route.Name)
+			op, err := s.routes.Delete(s.scope.Project(), route.Name).Do()
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete routes")
+			}
+			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
+				return errors.Wrapf(err, "failed to delete routes")
+			}
 		}
 	}
 

@@ -28,6 +28,10 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/wait"
 )
 
+const (
+	k8sNodeRouteTag = "k8s-node-route"
+)
+
 // InstanceIfExists returns the existing instance or nothing if it doesn't exist.
 func (s *Service) ReconcileNetwork() error {
 	// Create Network
@@ -105,7 +109,7 @@ func (s *Service) DeleteNetwork() error {
 	}
 
 	// Delete routes associated with network
-	filterString := fmt.Sprintf("description=k8s-node-route name=%s-*", s.scope.Name())
+	filterString := fmt.Sprintf("description=%s name=%s-*", k8sNodeRouteTag, s.scope.Name())
 	routeList, err := s.routes.List(s.scope.Project()).Filter(filterString).Do()
 	if err != nil {
 		return errors.Wrapf(err, "failed to list routes for the cluster")
@@ -119,7 +123,7 @@ func (s *Service) DeleteNetwork() error {
 				return errors.Wrapf(err, "failed to delete routes")
 			}
 			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-				return errors.Wrapf(err, "failed to delete routes")
+				return errors.Wrapf(err, "failed to wait for delete routes operation")
 			}
 		}
 	}

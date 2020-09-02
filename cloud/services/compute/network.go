@@ -68,8 +68,7 @@ func (s *Service) ReconcileNetwork() error {
 
 	// Create subnetworks if the network is created in custom mode
 	if !network.AutoCreateSubnetworks {
-		err := s.createSubnetworks()
-		if err != nil {
+		if err := s.createSubnetworks(); err != nil {
 			return err
 		}
 	}
@@ -87,6 +86,10 @@ func (s *Service) getNetworkSpec() *compute.Network {
 	if s.scope.GCPCluster.Spec.Network.AutoCreateSubnetworks != nil {
 		res.AutoCreateSubnetworks = *s.scope.GCPCluster.Spec.Network.AutoCreateSubnetworks
 		if !res.AutoCreateSubnetworks {
+			// res.AutoCreateSubnetworks holds a boolean value. If set to true, VPC network is created in
+			// auto mode. If false, then network gets created in legacy mode(unset)
+			// Hence add 'AutoCreateSubnetworks' even though the value is set to false so as to
+			// distinguish between unset(legacy) and explicitly set false(custom)
 			res.ForceSendFields = []string{"AutoCreateSubnetworks"}
 		}
 	}
@@ -142,8 +145,10 @@ func (s *Service) DeleteNetwork() error {
 	}
 
 	// Delete subnetworks if the network was created in custom mode
-	if err := s.deleteSubnetworks(network.AutoCreateSubnetworks, network.Subnetworks); err != nil {
-		return err
+	if !network.AutoCreateSubnetworks {
+		if err := s.deleteSubnetworks(network.Subnetworks); err != nil {
+			return err
+		}
 	}
 
 	// Delete Network.
@@ -236,7 +241,7 @@ func (s *Service) createSubnetworks() error {
 				return errors.Wrapf(err, "failed to create subnetwork")
 			}
 			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-				return errors.Wrapf(err, "failed to create subnetwork")
+				return errors.Wrapf(err, "failed to wait create subnetwork")
 			}
 			_, err = s.subnetworks.Get(s.scope.Project(), s.scope.Region(), subnetSpec.Name).Do()
 			if err != nil {
@@ -250,10 +255,7 @@ func (s *Service) createSubnetworks() error {
 	return nil
 }
 
-func (s *Service) deleteSubnetworks(subnetCreationMode bool, subnetworks []string) error {
-	if subnetCreationMode {
-		return nil
-	}
+func (s *Service) deleteSubnetworks(subnetworks []string) error {
 	for _, subnet := range subnetworks {
 		subnetName := s.getSubnetNameFromUrl(subnet)
 		if subnetName != "" {
@@ -262,13 +264,16 @@ func (s *Service) deleteSubnetworks(subnetCreationMode bool, subnetworks []strin
 				return errors.Wrapf(err, "failed to delete subnetwork", "name", subnet)
 			}
 			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-				return errors.Wrapf(err, "failed to delete subnetwork", "name", subnet)
+				return errors.Wrapf(err, "failed to wait delete subnetwork", "name", subnet)
 			}
 		}
 	}
 	return nil
 }
 
+// Subnetworks list holds the fully-qualified URLs for all subnetworks in the VPC network
+// URL is like: https://www.googleapis.com/compute/v1/projects/project1/regions/us-central1/subnetworks/subnetwork1
+// This function gets the subnetwork name from the URL
 func (s *Service) getSubnetNameFromUrl(subnetUrl string) string {
 	subnetName := ""
 	splitSlice := strings.Split(subnetUrl, "/")

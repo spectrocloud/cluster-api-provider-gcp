@@ -51,6 +51,7 @@ func (s *Service) ReconcileNetwork() error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to describe network")
 		}
+		s.scope.Info("Created VPC network", "network", spec.Name)
 	} else if err != nil {
 		return errors.Wrapf(err, "failed to describe network")
 	}
@@ -64,6 +65,15 @@ func (s *Service) ReconcileNetwork() error {
 	s.scope.GCPCluster.Spec.Network.Name = pointer.StringPtr(network.Name)
 	s.scope.GCPCluster.Spec.Network.AutoCreateSubnetworks = pointer.BoolPtr(network.AutoCreateSubnetworks)
 	s.scope.GCPCluster.Status.Network.SelfLink = pointer.StringPtr(network.SelfLink)
+
+	// Create subnetworks if the network is created in custom mode
+	if !network.AutoCreateSubnetworks {
+		err := s.createSubnetworks()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -76,6 +86,9 @@ func (s *Service) getNetworkSpec() *compute.Network {
 
 	if s.scope.GCPCluster.Spec.Network.AutoCreateSubnetworks != nil {
 		res.AutoCreateSubnetworks = *s.scope.GCPCluster.Spec.Network.AutoCreateSubnetworks
+		if !res.AutoCreateSubnetworks {
+			res.ForceSendFields = []string{"AutoCreateSubnetworks"}
+		}
 	}
 
 	return res
@@ -126,6 +139,11 @@ func (s *Service) DeleteNetwork() error {
 				return errors.Wrapf(err, "failed to wait for delete routes operation")
 			}
 		}
+	}
+
+	// Delete subnetworks if the network was created in custom mode
+	if err := s.deleteSubnetworks(network.AutoCreateSubnetworks, network.Subnetworks); err != nil {
+		return err
 	}
 
 	// Delete Network.
@@ -195,4 +213,67 @@ func getRouterName(network string) string {
 }
 func getRouterNatName(network string) string {
 	return fmt.Sprintf("%s-%s", network, "nat")
+}
+
+func (s *Service) getSubnetworkSpec(subnet *infrav1.SubnetSpec) *compute.Subnetwork {
+	res := &compute.Subnetwork{
+		EnableFlowLogs:        *subnet.EnableFlowLogs,
+		IpCidrRange:           subnet.CidrBlock,
+		Name:                  subnet.Name,
+		Network:               s.scope.NetworkSelfLink(),
+		Region:                subnet.Region,
+	}
+	return res
+}
+
+func (s *Service) createSubnetworks() error {
+	for _, subnet := range s.scope.Subnets() {
+		_, err := s.subnetworks.Get(s.scope.Project(), s.scope.Region(), subnet.Name).Do()
+		if gcperrors.IsNotFound(err) {
+			subnetSpec := s.getSubnetworkSpec(subnet)
+			op, err := s.subnetworks.Insert(s.scope.Project(), s.scope.Region(), subnetSpec).Do()
+			if err != nil {
+				return errors.Wrapf(err, "failed to create subnetwork")
+			}
+			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
+				return errors.Wrapf(err, "failed to create subnetwork")
+			}
+			_, err = s.subnetworks.Get(s.scope.Project(), s.scope.Region(), subnetSpec.Name).Do()
+			if err != nil {
+				return errors.Wrapf(err, "failed to describe subnetwork")
+			}
+			s.scope.Info("Created subnetwork", "subnet", subnetSpec.Name, "network", subnetSpec.Region)
+		} else if err != nil {
+			return errors.Wrapf(err, "failed to describe subnetwork")
+		}
+	}
+	return nil
+}
+
+func (s *Service) deleteSubnetworks(subnetCreationMode bool, subnetworks []string) error {
+	if subnetCreationMode {
+		return nil
+	}
+	for _, subnet := range subnetworks {
+		subnetName := s.getSubnetNameFromUrl(subnet)
+		if subnetName != "" {
+			op, err := s.subnetworks.Delete(s.scope.Project(), s.scope.Region(), subnetName).Do()
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete subnetwork", "name", subnet)
+			}
+			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
+				return errors.Wrapf(err, "failed to delete subnetwork", "name", subnet)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Service) getSubnetNameFromUrl(subnetUrl string) string {
+	subnetName := ""
+	splitSlice := strings.Split(subnetUrl, "/")
+	if len(splitSlice) > 0 {
+		subnetName = splitSlice[len(splitSlice)-1]
+	}
+	return subnetName
 }

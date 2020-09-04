@@ -247,7 +247,7 @@ func (s *Service) createSubnetworks() error {
 			if err != nil {
 				return errors.Wrapf(err, "failed to describe subnetwork")
 			}
-			s.scope.Info("Created subnetwork", "subnet", subnetSpec.Name, "network", subnetSpec.Region)
+			s.scope.Info("Created subnetwork", "subnet", subnetSpec.Name, "region", subnetSpec.Region)
 		} else if err != nil {
 			return errors.Wrapf(err, "failed to describe subnetwork")
 		}

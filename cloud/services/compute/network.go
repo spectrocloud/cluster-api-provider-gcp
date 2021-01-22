@@ -96,11 +96,8 @@ func (s *Service) DeleteNetwork() error {
 	router, err := s.routers.Get(s.scope.Project(), s.scope.Region(), getRouterName(s.scope.NetworkName())).Do()
 	if err == nil {
 		op, err := s.routers.Delete(s.scope.Project(), s.scope.Region(), router.Name).Do()
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete router")
-		}
-		if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-			return errors.Wrapf(err, "failed to wait for delete router")
+		if opErr := s.checkOrWaitForDeleteOp(op, err); opErr != nil {
+			return errors.Wrapf(opErr, "failed to delete router")
 		}
 	} else {
 		if !gcperrors.IsNotFound(err) {
@@ -119,24 +116,16 @@ func (s *Service) DeleteNetwork() error {
 		if strings.HasSuffix(route.Network, network.Name) {
 			s.scope.Info("deleting route ", "route:", route.Name)
 			op, err := s.routes.Delete(s.scope.Project(), route.Name).Do()
-			if err != nil {
-				return errors.Wrapf(err, "failed to delete routes")
-			}
-			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-				return errors.Wrapf(err, "failed to wait for delete routes operation")
+			if opErr := s.checkOrWaitForDeleteOp(op, err); opErr != nil {
+				return errors.Wrapf(opErr, "failed to delete route")
 			}
 		}
 	}
 
 	// Delete Network.
 	op, err := s.networks.Delete(s.scope.Project(), network.Name).Do()
-	if err != nil {
-		if !gcperrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to delete network")
-		}
-	}
-	if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-		return errors.Wrapf(err, "failed to wait for delete network operation")
+	if opErr := s.checkOrWaitForDeleteOp(op, err); opErr != nil {
+		return errors.Wrapf(opErr, "failed to delete network")
 	}
 	s.scope.GCPCluster.Spec.Network.Name = nil
 	return nil

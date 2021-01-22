@@ -20,6 +20,7 @@ import (
 	"google.golang.org/api/compute/v1"
 
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/scope"
+	"sigs.k8s.io/cluster-api-provider-gcp/cloud/wait"
 )
 
 // Service holds a collection of interfaces.
@@ -60,4 +61,23 @@ func NewService(scope *scope.ClusterScope) *Service {
 		routers:         scope.Compute.Routers,
 		routes:          scope.Compute.Routes,
 	}
+}
+
+// If err == IsNotFound, then return nil
+// If err != nil, then return err
+// Otherwise should wait for operation to finish
+func (s *Service) checkOrWaitForDeleteOp(op *compute.Operation, err error) error {
+	if err != nil {
+		if gcperrors.IsNotFound(err) {
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	if op == nil {
+		return nil
+	}
+
+	return wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op)
 }

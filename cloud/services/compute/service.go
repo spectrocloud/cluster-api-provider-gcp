@@ -19,7 +19,9 @@ package compute
 import (
 	"google.golang.org/api/compute/v1"
 
+	"sigs.k8s.io/cluster-api-provider-gcp/cloud/gcperrors"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/scope"
+	"sigs.k8s.io/cluster-api-provider-gcp/cloud/wait"
 )
 
 // Service holds a collection of interfaces.
@@ -40,6 +42,7 @@ type Service struct {
 	forwardingrules *compute.GlobalForwardingRulesService
 	firewalls       *compute.FirewallsService
 	routers         *compute.RoutersService
+	routes          *compute.RoutesService
 }
 
 // NewService returns a new service given the gcp api client.
@@ -57,5 +60,25 @@ func NewService(scope *scope.ClusterScope) *Service {
 		forwardingrules: scope.Compute.GlobalForwardingRules,
 		firewalls:       scope.Compute.Firewalls,
 		routers:         scope.Compute.Routers,
+		routes:          scope.Compute.Routes,
 	}
+}
+
+// If err == IsNotFound, then return nil
+// If err != nil, then return err
+// Otherwise should wait for operation to finish
+func (s *Service) checkOrWaitForDeleteOp(op *compute.Operation, err error) error {
+	if err != nil {
+		if gcperrors.IsNotFound(err) {
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	if op == nil {
+		return nil
+	}
+
+	return wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op)
 }

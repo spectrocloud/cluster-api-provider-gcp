@@ -67,6 +67,25 @@ func (s *Service) DeleteFirewalls() error {
 		delete(s.scope.Network().FirewallRules, name)
 	}
 
+	//delete any additional non-default firewall rules that were generated
+	firewallRules, err := s.firewalls.List(s.scope.Project()).Do()
+	if err != nil {
+		return errors.Wrapf(err, "failed to list firewall rules for project %s", s.scope.Project())
+	}
+
+	clusterName := s.scope.Name()
+	for _, firewall := range firewallRules.Items {
+		for _, tt := range firewall.TargetTags {
+			//only delete rules with target-tags containing the cluster-name
+			if tt == clusterName {
+				op, err := s.firewalls.Delete(s.scope.Project(), firewall.Name).Do()
+				if opErr := s.checkOrWaitForDeleteOp(op, err); opErr != nil {
+					return errors.Wrapf(opErr, "failed to delete firewall %s", firewall.Name)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

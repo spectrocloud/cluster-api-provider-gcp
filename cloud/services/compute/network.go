@@ -18,10 +18,11 @@ package compute
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	"google.golang.org/api/compute/v1"
 	"k8s.io/utils/pointer"
-	"strings"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/gcperrors"
@@ -213,11 +214,11 @@ func getRouterNatName(network string) string {
 
 func (s *Service) getSubnetworkSpec(subnet *infrav1.SubnetSpec) *compute.Subnetwork {
 	res := &compute.Subnetwork{
-		EnableFlowLogs:        *subnet.EnableFlowLogs,
-		IpCidrRange:           subnet.CidrBlock,
-		Name:                  subnet.Name,
-		Network:               s.scope.NetworkSelfLink(),
-		Region:                subnet.Region,
+		EnableFlowLogs: *subnet.EnableFlowLogs,
+		IpCidrRange:    subnet.CidrBlock,
+		Name:           subnet.Name,
+		Network:        s.scope.NetworkSelfLink(),
+		Region:         subnet.Region,
 	}
 	return res
 }
@@ -252,10 +253,10 @@ func (s *Service) deleteSubnetworks(subnetworks []string) error {
 		if subnetName != "" {
 			op, err := s.subnetworks.Delete(s.scope.Project(), s.scope.Region(), subnetName).Do()
 			if err != nil {
-				return errors.Wrapf(err, "failed to delete subnetwork", "name", subnet)
+				return errors.Wrapf(err, "failed to delete subnetwork %s", subnet)
 			}
 			if err := wait.ForComputeOperation(s.scope.Compute, s.scope.Project(), op); err != nil {
-				return errors.Wrapf(err, "failed to wait delete subnetwork", "name", subnet)
+				return errors.Wrapf(err, "failed to wait delete subnetwork %s", subnet)
 			}
 		}
 	}

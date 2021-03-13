@@ -18,11 +18,12 @@ package compute
 
 import (
 	"fmt"
+	"net/url"
+	"path"
 	"strconv"
 
 	"github.com/pkg/errors"
 	"google.golang.org/api/compute/v1"
-
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/gcperrors"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/wait"
@@ -67,7 +68,51 @@ func (s *Service) DeleteFirewalls() error {
 		delete(s.scope.Network().FirewallRules, name)
 	}
 
+	//delete any additional non-default firewall rules that were generated
+	//capg reconcile only deletes the default allow-* firewall rules
+	firewallRules, err := s.firewalls.List(s.scope.Project()).Do()
+	if err != nil {
+		return errors.Wrapf(err, "failed to list firewall rules for project %s", s.scope.Project())
+	}
+
+	clusterName := s.scope.Name()
+	for _, firewall := range firewallRules.Items {
+		networkName, err := getFirewallNetworkName(firewall)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get network name for firewall %s", firewall.Name)
+		}
+
+		//only handle rules for the cluster nw
+		if networkName == s.scope.NetworkName() {
+			for _, tt := range firewall.TargetTags {
+				//only delete rules with target-tags containing the cluster-name
+				if tt == clusterName {
+					op, err := s.firewalls.Delete(s.scope.Project(), firewall.Name).Do()
+					if opErr := s.checkOrWaitForDeleteOp(op, err); opErr != nil {
+						return errors.Wrapf(opErr, "failed to delete firewall %s", firewall.Name)
+					}
+				}
+			}
+		}
+	}
+
 	return nil
+}
+
+//fetches the name of the network for a given firewall
+func getFirewallNetworkName(firewall *compute.Firewall) (string, error) {
+	//eg., url: projects/myproject/global/networks/my-network
+	fireNetUrl := firewall.Network
+	if len(fireNetUrl) == 0 {
+		return "", nil
+	}
+
+	url, err := url.Parse(fireNetUrl)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to parse network url '%s' for firewall %s", firewall.Network, firewall.Name)
+	}
+
+	return path.Base(url.Path), nil
 }
 
 func (s *Service) getFirewallSpecs() []*compute.Firewall {

@@ -131,38 +131,41 @@ func main() {
 	// Setup the context that's going to be used in controllers and for the manager.
 	ctx := ctrl.SetupSignalHandler()
 
-	if err = (&controllers.GCPMachineReconciler{
-		Client:           mgr.GetClient(),
-		ReconcileTimeout: reconcileTimeout,
-		WatchFilterValue: watchFilterValue,
-	}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: gcpMachineConcurrency}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GCPMachine")
-		os.Exit(1)
-	}
-	if err = (&controllers.GCPClusterReconciler{
-		Client:           mgr.GetClient(),
-		ReconcileTimeout: reconcileTimeout,
-		WatchFilterValue: watchFilterValue,
-	}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: gcpClusterConcurrency}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GCPCluster")
-		os.Exit(1)
-	}
+	if webhookPort == 0 {
 
-	if err = (&infrav1alpha4.GCPCluster{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "GCPCluster")
-		os.Exit(1)
-	}
-	if err = (&infrav1alpha4.GCPClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "GCPClusterTemplate")
-		os.Exit(1)
-	}
-	if err = (&infrav1alpha4.GCPMachine{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "GCPMachine")
-		os.Exit(1)
-	}
-	if err = (&infrav1alpha4.GCPMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "GCPMachineTemplate")
-		os.Exit(1)
+		if err = (&controllers.GCPMachineReconciler{
+			Client:           mgr.GetClient(),
+			ReconcileTimeout: reconcileTimeout,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: gcpMachineConcurrency}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GCPMachine")
+			os.Exit(1)
+		}
+		if err = (&controllers.GCPClusterReconciler{
+			Client:           mgr.GetClient(),
+			ReconcileTimeout: reconcileTimeout,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: gcpClusterConcurrency}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GCPCluster")
+			os.Exit(1)
+		}
+	} else {
+		if err = (&infrav1alpha4.GCPCluster{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GCPCluster")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha4.GCPClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GCPClusterTemplate")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha4.GCPMachine{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GCPMachine")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha4.GCPMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GCPMachineTemplate")
+			os.Exit(1)
+		}
 	}
 
 	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
@@ -267,7 +270,7 @@ func initFlags(fs *pflag.FlagSet) {
 
 	fs.IntVar(&webhookPort,
 		"webhook-port",
-		9443,
+		0,
 		"Webhook Server port",
 	)
 

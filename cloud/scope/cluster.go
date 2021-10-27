@@ -164,11 +164,22 @@ func (s *ClusterScope) SetControlPlaneEndpoint(endpoint clusterv1.APIEndpoint) {
 
 // NetworkSpec returns google compute network spec.
 func (s *ClusterScope) NetworkSpec() *compute.Network {
-	createSubnet := pointer.BoolDeref(s.GCPCluster.Spec.Network.AutoCreateSubnetworks, true)
+	//createSubnet := pointer.BoolDeref(s.GCPCluster.Spec.Network.AutoCreateSubnetworks, true)
 	network := &compute.Network{
 		Name:                  s.NetworkName(),
 		Description:           infrav1.ClusterTagKey(s.Name()),
-		AutoCreateSubnetworks: createSubnet,
+		AutoCreateSubnetworks: true,
+	}
+
+	if s.GCPCluster.Spec.Network.AutoCreateSubnetworks != nil {
+		network.AutoCreateSubnetworks = *s.GCPCluster.Spec.Network.AutoCreateSubnetworks
+		// network.AutoCreateSubnetworks holds a boolean value. If set to true, VPC network is created in
+		// auto mode. If false, then network gets created in legacy mode(unset)
+		// Hence add 'AutoCreateSubnetworks' even though the value is set to false so as to
+		// distinguish between unset(legacy) and explicitly set false(custom)
+		if !network.AutoCreateSubnetworks {
+			network.ForceSendFields = append(network.ForceSendFields, "AutoCreateSubnetworks")
+		}
 	}
 
 	return network

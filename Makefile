@@ -95,7 +95,8 @@ STAGING_REGISTRY := gcr.io/k8s-staging-cluster-api-gcp
 PROD_REGISTRY := us.gcr.io/k8s-artifacts-prod/cluster-api-gcp
 IMAGE_NAME ?= cluster-api-gcp-controller
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-export TAG ?= dev
+SPECTRO_REGISTRY := gcr.io/spectro-images-public/cluster-api-gcp/test/$(IMAGE_NAME)
+export TAG ?= v1alpha4
 export ARCH ?= amd64
 ALL_ARCH = amd64 arm arm64 ppc64le s390x
 
@@ -260,6 +261,12 @@ generate-manifests: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc.
 docker-build: ## Build the docker image for controller-manager
 	docker build --pull --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG)-$(ARCH):$(TAG)
 	MANIFEST_IMG=$(CONTROLLER_IMG)-$(ARCH) MANIFEST_TAG=$(TAG) $(MAKE) set-manifest-image
+	$(MAKE) set-manifest-pull-policy
+
+.PHONY: spectro-build
+spectro-build:
+	docker build --pull --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(SPECTRO_REGISTRY):$(TAG)
+	MANIFEST_IMG=$(SPECTRO_REGISTRY) MANIFEST_TAG=$(TAG) $(MAKE) set-manifest-image
 	$(MAKE) set-manifest-pull-policy
 
 .PHONY: docker-push

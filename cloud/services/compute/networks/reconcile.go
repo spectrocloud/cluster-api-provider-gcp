@@ -36,6 +36,16 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.scope.Network().SelfLink = pointer.String(network.SelfLink)
+
+	if !network.AutoCreateSubnetworks {
+		// Custom mode detected
+		for _, subnet := range s.scope.SubnetworkSpec() {
+			if _, err = s.createOrGetSubNetwork(ctx, subnet); err != nil {
+				return err
+			}
+		}
+	}
 
 	if network.Description == infrav1.ClusterTagKey(s.scope.Name()) {
 		router, err := s.createOrGetRouter(ctx, network)
@@ -45,8 +55,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 		s.scope.Network().Router = pointer.String(router.SelfLink)
 	}
-
-	s.scope.Network().SelfLink = pointer.String(network.SelfLink)
 	return nil
 }
 
@@ -80,6 +88,18 @@ func (s *Service) Delete(ctx context.Context) error {
 			return err
 		}
 	}
+
+	if !network.AutoCreateSubnetworks {
+		// Custom mode detected
+		for _, subnet := range s.scope.SubnetworkSpec() {
+			subnetKey := meta.RegionalKey(subnet.Name, subnet.Region)
+			if err = s.subnetworks.Delete(ctx, subnetKey); err != nil {
+				log.Error(err, "Error deleting a subnetwork", "name", subnet.Name, "region",subnet.Region)
+				return err
+			}
+		}
+	}
+
 
 	if err := s.networks.Delete(ctx, networkKey); err != nil {
 		log.Error(err, "Error deleting a network", "name", s.scope.NetworkName())
@@ -116,6 +136,33 @@ func (s *Service) createOrGetNetwork(ctx context.Context) (*compute.Network, err
 	}
 
 	return network, nil
+}
+
+// createOrGetSubNetwork creates a subnetwork if not exist otherwise return existing subnetwork.
+func (s *Service) createOrGetSubNetwork(ctx context.Context, subnet *compute.Subnetwork) (*compute.Subnetwork, error) {
+	log := log.FromContext(ctx)
+	log.V(2).Info("Looking for subnetwork", "name", subnet.Name)
+	subnetKey := meta.RegionalKey(subnet.Name, subnet.Region)
+	subnetwork, err := s.subnetworks.Get(ctx, subnetKey)
+	if err != nil {
+		if !gcperrors.IsNotFound(err) {
+			log.Error(err, "Error looking for subnetwork", "name", subnet.Name)
+			return nil, err
+		}
+
+		log.V(2).Info("Creating a subnetwork", "name", subnet.Name)
+		if err := s.subnetworks.Insert(ctx, subnetKey, subnet); err != nil {
+			log.Error(err, "Error creating a subnetwork", "name", subnet.Name)
+			return nil, err
+		}
+
+		subnetwork, err = s.subnetworks.Get(ctx, subnetKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return subnetwork, nil
 }
 
 // createOrGetRouter creates a cloudnat router if not exist otherwise return the existing.

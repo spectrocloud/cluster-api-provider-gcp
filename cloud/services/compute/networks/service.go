@@ -30,6 +30,12 @@ type networksInterface interface {
 	Delete(ctx context.Context, key *meta.Key) error
 }
 
+type subnetworksInterface interface {
+	Get(ctx context.Context, key *meta.Key) (*compute.Subnetwork, error)
+	Insert(ctx context.Context, key *meta.Key, obj *compute.Subnetwork) error
+	Delete(ctx context.Context, key *meta.Key) error
+}
+
 type routersInterface interface {
 	Get(ctx context.Context, key *meta.Key) (*compute.Router, error)
 	Insert(ctx context.Context, key *meta.Key, obj *compute.Router) error
@@ -40,6 +46,7 @@ type routersInterface interface {
 type Scope interface {
 	cloud.Cluster
 	NetworkSpec() *compute.Network
+	SubnetworkSpec() []*compute.Subnetwork
 	NatRouterSpec() *compute.Router
 }
 
@@ -47,6 +54,7 @@ type Scope interface {
 type Service struct {
 	scope    Scope
 	networks networksInterface
+	subnetworks subnetworksInterface
 	routers  routersInterface
 }
 
@@ -58,5 +66,6 @@ func New(scope Scope) *Service {
 		scope:    scope,
 		networks: scope.Cloud().Networks(),
 		routers:  scope.Cloud().Routers(),
+		subnetworks: scope.Cloud().Subnetworks(),
 	}
 }

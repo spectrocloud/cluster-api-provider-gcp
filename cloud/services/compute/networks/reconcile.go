@@ -18,13 +18,19 @@ package networks
 
 import (
 	"context"
+	"strings"
 
+	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/filter"
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/meta"
 	"google.golang.org/api/compute/v1"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/gcperrors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+const (
+	k8sNodeRouteTag = "k8s-node-route"
 )
 
 // Reconcile reconcile cluster network components.
@@ -92,13 +98,37 @@ func (s *Service) Delete(ctx context.Context) error {
 		// Custom mode detected
 		for _, subnet := range s.scope.SubnetworkSpec() {
 			subnetKey := meta.RegionalKey(subnet.Name, subnet.Region)
-			if err = s.subnetworks.Delete(ctx, subnetKey); err != nil {
-				log.Error(err, "Error deleting a subnetwork", "name", subnet.Name, "region",subnet.Region)
+			subnetwork, err := s.subnetworks.Get(ctx, subnetKey)
+			if err != nil && !gcperrors.IsNotFound(err) {
 				return err
+			}
+			if subnetwork != nil {
+				if err = s.subnetworks.Delete(ctx, subnetKey); err != nil {
+					log.Error(err, "Error deleting a subnetwork", "name", subnet.Name, "region", subnet.Region)
+					return err
+				}
 			}
 		}
 	}
 
+	// Delete routes associated with network
+	fl := filter.Regexp("description", k8sNodeRouteTag)
+	routeList, err := s.routes.List(ctx, fl)
+	if err != nil {
+		log.Error(err, "failed to list routes for the cluster")
+		return err
+	}
+
+	for _, route := range routeList {
+		if strings.HasSuffix(route.Network, s.scope.NetworkName()) {
+			log.V(2).Info("Deleting route ", "route:", route.Name)
+			err := s.routes.Delete(ctx, meta.GlobalKey(route.Name))
+			if err != nil {
+				log.Error(err, "Error deleting a route", "name", route.Name)
+				return err
+			}
+		}
+	}
 
 	if err := s.networks.Delete(ctx, networkKey); err != nil {
 		log.Error(err, "Error deleting a network", "name", s.scope.NetworkName())

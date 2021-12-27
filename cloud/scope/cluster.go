@@ -227,6 +227,22 @@ func (s *ClusterScope) NetworkSpec() *compute.Network {
 	return network
 }
 
+// SubnetworkSpec returns google compute network spec.
+func (s *ClusterScope) SubnetworkSpec() []*compute.Subnetwork {
+	var subnetworks []*compute.Subnetwork
+	for _, subnet := range s.GCPCluster.Spec.Network.Subnets {
+		subnetwork := &compute.Subnetwork{
+			EnableFlowLogs: *subnet.EnableFlowLogs,
+			IpCidrRange:    subnet.CidrBlock,
+			Name:           subnet.Name,
+			Network:        *s.Network().SelfLink,
+			Region:         subnet.Region,
+		}
+		subnetworks = append(subnetworks, subnetwork)
+	}
+	return subnetworks
+}
+
 // NatRouterSpec returns google compute nat router spec.
 func (s *ClusterScope) NatRouterSpec() *compute.Router {
 	networkSpec := s.NetworkSpec()

@@ -164,14 +164,41 @@ func (s *ClusterScope) SetControlPlaneEndpoint(endpoint clusterv1.APIEndpoint) {
 
 // NetworkSpec returns google compute network spec.
 func (s *ClusterScope) NetworkSpec() *compute.Network {
-	createSubnet := pointer.BoolDeref(s.GCPCluster.Spec.Network.AutoCreateSubnetworks, true)
+	//createSubnet := pointer.BoolDeref(s.GCPCluster.Spec.Network.AutoCreateSubnetworks, true)
 	network := &compute.Network{
 		Name:                  s.NetworkName(),
 		Description:           infrav1.ClusterTagKey(s.Name()),
-		AutoCreateSubnetworks: createSubnet,
+		AutoCreateSubnetworks: true,
+	}
+
+	if s.GCPCluster.Spec.Network.AutoCreateSubnetworks != nil {
+		network.AutoCreateSubnetworks = *s.GCPCluster.Spec.Network.AutoCreateSubnetworks
+		// network.AutoCreateSubnetworks holds a boolean value. If set to true, VPC network is created in
+		// auto mode. If false, then network gets created in legacy mode(unset)
+		// Hence add 'AutoCreateSubnetworks' even though the value is set to false so as to
+		// distinguish between unset(legacy) and explicitly set false(custom)
+		if !network.AutoCreateSubnetworks {
+			network.ForceSendFields = append(network.ForceSendFields, "AutoCreateSubnetworks")
+		}
 	}
 
 	return network
+}
+
+// SubnetworkSpec returns google compute network spec.
+func (s *ClusterScope) SubnetworkSpec() []*compute.Subnetwork {
+	var subnetworks []*compute.Subnetwork
+	for _, subnet := range s.GCPCluster.Spec.Network.Subnets {
+		subnetwork := &compute.Subnetwork{
+			EnableFlowLogs:        *subnet.EnableFlowLogs,
+			IpCidrRange:           subnet.CidrBlock,
+			Name:                  subnet.Name,
+			Network:               *s.Network().SelfLink,
+			Region:                subnet.Region,
+		}
+		subnetworks = append(subnetworks, subnetwork)
+	}
+	return subnetworks
 }
 
 // NatRouterSpec returns google compute nat router spec.

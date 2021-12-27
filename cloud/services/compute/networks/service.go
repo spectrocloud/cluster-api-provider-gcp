@@ -20,6 +20,7 @@ import (
 	"context"
 
 	k8scloud "github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud"
+	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/filter"
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/meta"
 	"google.golang.org/api/compute/v1"
 
@@ -44,6 +45,13 @@ type routersInterface interface {
 	Delete(ctx context.Context, key *meta.Key, options ...k8scloud.Option) error
 }
 
+type routesInterface interface {
+	Get(ctx context.Context, key *meta.Key) (*compute.Route, error)
+	Insert(ctx context.Context, key *meta.Key, obj *compute.Route) error
+	Delete(ctx context.Context, key *meta.Key) error
+	List(ctx context.Context, fl *filter.F) ([]*compute.Route, error)
+}
+
 // Scope is an interfaces that hold used methods.
 type Scope interface {
 	cloud.Cluster
@@ -54,10 +62,11 @@ type Scope interface {
 
 // Service implements networks reconciler.
 type Service struct {
-	scope    Scope
-	networks networksInterface
+	scope       Scope
+	networks    networksInterface
 	subnetworks subnetworksInterface
-	routers  routersInterface
+	routers     routersInterface
+	routes      routesInterface
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -73,6 +82,7 @@ func New(scope Scope) *Service {
 		scope:    scope,
 		networks: scopeCloud.Networks(),
 		routers:  scopeCloud.Routers(),
+		routes:      scopeCloud.Routes(),
 		subnetworks: scopeCloud.Subnetworks(),
 	}
 }

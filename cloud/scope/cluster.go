@@ -190,11 +190,11 @@ func (s *ClusterScope) SubnetworkSpec() []*compute.Subnetwork {
 	var subnetworks []*compute.Subnetwork
 	for _, subnet := range s.GCPCluster.Spec.Network.Subnets {
 		subnetwork := &compute.Subnetwork{
-			EnableFlowLogs:        *subnet.EnableFlowLogs,
-			IpCidrRange:           subnet.CidrBlock,
-			Name:                  subnet.Name,
-			Network:               *s.Network().SelfLink,
-			Region:                subnet.Region,
+			EnableFlowLogs: *subnet.EnableFlowLogs,
+			IpCidrRange:    subnet.CidrBlock,
+			Name:           subnet.Name,
+			Network:        *s.Network().SelfLink,
+			Region:         subnet.Region,
 		}
 		subnetworks = append(subnetworks, subnetwork)
 	}
@@ -223,6 +223,10 @@ func (s *ClusterScope) NatRouterSpec() *compute.Router {
 // FirewallRulesSpec returns google compute firewall spec.
 func (s *ClusterScope) FirewallRulesSpec() []*compute.Firewall {
 	network := s.Network()
+	if network == nil || network.SelfLink == nil {
+		var rules []*compute.Firewall
+		return rules
+	}
 	firewallRules := []*compute.Firewall{
 		{
 			Name:    fmt.Sprintf("allow-%s-healthchecks", s.Name()),

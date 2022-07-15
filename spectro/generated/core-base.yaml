@@ -1,0 +1,80 @@
+apiVersion: v1
+data:
+  credentials.json: ${GCP_B64ENCODED_CREDENTIALS}
+kind: Secret
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: infrastructure-gcp
+  name: capg-manager-bootstrap-credentials
+  namespace: capg-system
+type: Opaque
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: infrastructure-gcp
+    control-plane: capg-controller-manager
+  name: capg-controller-manager
+  namespace: capg-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/provider: infrastructure-gcp
+      control-plane: capg-controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        cluster.x-k8s.io/provider: infrastructure-gcp
+        control-plane: capg-controller-manager
+    spec:
+      containers:
+      - args:
+        - --leader-elect
+        - --feature-gates=GKE=${EXP_CAPG_GKE:=false}
+        - --diagnostics-address=${CAPG_DIAGNOSTICS_ADDRESS:=:8443}
+        - --insecure-diagnostics=${CAPG_INSECURE_DIAGNOSTICS:=false}
+        - --v=${CAPG_LOGLEVEL:=0}
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /home/.gcp/credentials.json
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: gcr.io/spectro-images-public/cluster-api-gcp/test/cluster-api-gcp-controller:20220714
+        imagePullPolicy: Always
+        name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 65532
+          runAsUser: 65532
+        volumeMounts:
+        - mountPath: /home/.gcp
+          name: credentials
+      serviceAccountName: manager
+      terminationGracePeriodSeconds: 10
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+      volumes:
+      - name: credentials
+        secret:
+          secretName: capg-manager-bootstrap-credentials

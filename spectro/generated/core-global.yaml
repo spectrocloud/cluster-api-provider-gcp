@@ -2352,8 +2352,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: gcr.io/k8s-staging-cluster-api-gcp/cluster-api-gcp-controller:e2e
-        imagePullPolicy: IfNotPresent
+        image: gcr.io/spectro-dev-public/cluster-api-gcp/cluster-api-gcp-controller:20220715
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
@@ -2378,7 +2378,6 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
-      serviceAccountName: manager
       terminationGracePeriodSeconds: 10
       tolerations:
       - effect: NoSchedule

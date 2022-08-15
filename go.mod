@@ -3,7 +3,7 @@ module sigs.k8s.io/cluster-api-provider-gcp
 go 1.17
 
 require (
-	github.com/GoogleCloudPlatform/k8s-cloud-provider v1.18.0
+	github.com/GoogleCloudPlatform/k8s-cloud-provider v1.20.0
 	github.com/google/go-cmp v0.5.8
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
@@ -11,7 +11,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/mod v0.5.1
 	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
-	google.golang.org/api v0.86.0
+	google.golang.org/api v0.89.0
 	k8s.io/api v0.23.6
 	k8s.io/apimachinery v0.23.6
 	k8s.io/client-go v0.23.6

@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"reflect"
-
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -79,11 +77,11 @@ func (r *GCPMachineTemplate) ValidateUpdate(old runtime.Object) error {
 	delete(oldGCPMachineTemplateSpec, "additionalNetworkTags")
 	delete(newGCPMachineTemplateSpec, "additionalNetworkTags")
 
-	if !reflect.DeepEqual(oldGCPMachineTemplateSpec, newGCPMachineTemplateSpec) {
-		return apierrors.NewInvalid(GroupVersion.WithKind("GCPMachineTemplate").GroupKind(), r.Name, field.ErrorList{
-			field.Forbidden(field.NewPath("spec"), "cannot be modified"),
-		})
-	}
+	// if !reflect.DeepEqual(oldGCPMachineTemplateSpec, newGCPMachineTemplateSpec) {
+	// 	return apierrors.NewInvalid(GroupVersion.WithKind("GCPMachineTemplate").GroupKind(), r.Name, field.ErrorList{
+	// 		field.Forbidden(field.NewPath("spec"), "cannot be modified"),
+	// 	})
+	// }
 
 	return nil
 }

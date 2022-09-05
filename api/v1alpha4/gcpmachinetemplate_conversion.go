@@ -41,9 +41,6 @@ func (src *GCPMachineTemplate) ConvertTo(dstRaw conversion.Hub) error { // nolin
 
 	if restored.Spec.Template.Spec.IPForwarding != nil {
 		dst.Spec.Template.Spec.IPForwarding = restored.Spec.Template.Spec.IPForwarding
-	} else {
-		ipforwardingEnabled := infrav1beta1.IPForwardingEnabled
-		dst.Spec.Template.Spec.IPForwarding = &ipforwardingEnabled
 	}
 
 	if restored.Spec.Template.Spec.ShieldedInstanceConfig != nil {

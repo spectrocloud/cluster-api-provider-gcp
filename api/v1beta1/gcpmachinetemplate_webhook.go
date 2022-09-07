@@ -85,7 +85,9 @@ func (r *GCPMachineTemplate) ValidateUpdate(old runtime.Object) (admission.Warni
 	delete(oldGCPMachineTemplateSpecTemplateSpec, "additionalNetworkTags")
 	delete(newGCPMachineTemplateSpecTemplateSpec, "additionalNetworkTags")
 
-	delete(newGCPMachineTemplateSpecTemplateSpec, "ipForwarding")
+	if oldGCPMachineTemplateSpecTemplateSpec["ipForwarding"] == nil {
+		delete(newGCPMachineTemplateSpecTemplateSpec, "ipForwarding")
+	}
 
 	if !reflect.DeepEqual(oldGCPMachineTemplateSpecTemplateSpec, newGCPMachineTemplateSpecTemplateSpec) {
 		return nil, apierrors.NewInvalid(GroupVersion.WithKind("GCPMachineTemplate").GroupKind(), r.Name, field.ErrorList{

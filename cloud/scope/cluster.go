@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"google.golang.org/api/compute/v1"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
@@ -185,11 +186,13 @@ func (s *ClusterScope) SubnetworkSpec() []*compute.Subnetwork {
 	var subnetworks []*compute.Subnetwork
 	for _, subnet := range s.GCPCluster.Spec.Network.Subnets {
 		subnetwork := &compute.Subnetwork{
-			EnableFlowLogs: *subnet.EnableFlowLogs,
-			IpCidrRange:    subnet.CidrBlock,
-			Name:           subnet.Name,
-			Network:        *s.Network().SelfLink,
-			Region:         subnet.Region,
+			IpCidrRange: subnet.CidrBlock,
+			Name:        subnet.Name,
+			Network:     *s.Network().SelfLink,
+			Region:      subnet.Region,
+		}
+		if subnet.EnableFlowLogs != nil {
+			subnetwork.EnableFlowLogs = *subnet.EnableFlowLogs
 		}
 		subnetworks = append(subnetworks, subnetwork)
 	}

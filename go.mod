@@ -16,7 +16,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/crypto v0.3.0
-	golang.org/x/mod v0.7.0
+	golang.org/x/mod v0.9.0
 	golang.org/x/net v0.5.0
 	google.golang.org/api v0.108.0
 	google.golang.org/grpc v1.52.3

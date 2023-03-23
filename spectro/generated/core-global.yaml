@@ -4,6 +4,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: capi-webhook-system/capg-serving-cert
     controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: "null"
   labels:
     cluster.x-k8s.io/provider: infrastructure-gcp
     cluster.x-k8s.io/v1beta1: v1beta1
@@ -745,6 +746,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: capi-webhook-system/capg-serving-cert
     controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: "null"
   labels:
     cluster.x-k8s.io/provider: infrastructure-gcp
     cluster.x-k8s.io/v1beta1: v1beta1
@@ -1138,6 +1140,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: capi-webhook-system/capg-serving-cert
     controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: "null"
   labels:
     cluster.x-k8s.io/provider: infrastructure-gcp
     cluster.x-k8s.io/v1beta1: v1beta1
@@ -1898,6 +1901,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: capi-webhook-system/capg-serving-cert
     controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: "null"
   labels:
     cluster.x-k8s.io/provider: infrastructure-gcp
     cluster.x-k8s.io/v1beta1: v1beta1
@@ -2841,7 +2845,25 @@ spec:
     singular: gcpmanagedcontrolplane
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: Cluster to which this GCPManagedControlPlane belongs
+      jsonPath: .metadata.labels.cluster\.x-k8s\.io/cluster-name
+      name: Cluster
+      type: string
+    - description: Control plane is ready
+      jsonPath: .status.ready
+      name: Ready
+      type: string
+    - description: The current Kubernetes version
+      jsonPath: .status.currentVersion
+      name: CurrentVersion
+      type: string
+    - description: API Endpoint
+      jsonPath: .spec.endpoint
+      name: Endpoint
+      priority: 1
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: GCPManagedControlPlane is the Schema for the gcpmanagedcontrolplanes
@@ -2901,7 +2923,7 @@ spec:
                 type: string
               releaseChannel:
                 description: ReleaseChannel represents the release channel of the
-                  GKE cluster. If not specified, it defaults to `regular`.
+                  GKE cluster.
                 enum:
                 - rapid
                 - regular
@@ -2917,7 +2939,7 @@ spec:
               GCPManagedControlPlane.
             properties:
               conditions:
-                description: Conditions specifies the cpnditions for the managed control
+                description: Conditions specifies the conditions for the managed control
                   plane
                 items:
                   description: Condition defines an observation of a Cluster API resource
@@ -2962,7 +2984,14 @@ spec:
                   - type
                   type: object
                 type: array
+              currentVersion:
+                description: CurrentVersion shows the current version of the GKE control
+                  plane.
+                type: string
               ready:
+                default: false
+                description: Ready denotes that the GCPManagedControlPlane API Server
+                  is ready to receive requests.
                 type: boolean
             required:
             - ready
@@ -3034,12 +3063,6 @@ spec:
                   GCP resources managed by the GCP provider, in addition to the ones
                   added by default.
                 type: object
-              initialNodeCount:
-                description: InitialNodeCount represents the initial number of nodes
-                  for the pool. In regional or multi-zonal clusters, this is the number
-                  of nodes per zone.
-                format: int32
-                type: integer
               kubernetesLabels:
                 additionalProperties:
                   type: string
@@ -3071,10 +3094,11 @@ spec:
                   - value
                   type: object
                 type: array
-              nodeVersion:
-                description: NodeVersion represents the node version of the node pool.
-                  If not specified, the GKE cluster control plane version will be
-                  used.
+              nodePoolName:
+                description: NodePoolName specifies the name of the GKE node pool
+                  corresponding to this MachinePool. If you don't specify a name then
+                  a default name will be created based on the namespace and name of
+                  the managed machine pool.
                 type: string
               providerIDList:
                 description: ProviderIDList are the provider IDs of instances in the
@@ -3083,8 +3107,16 @@ spec:
                 items:
                   type: string
                 type: array
-            required:
-            - initialNodeCount
+              scaling:
+                description: Scaling specifies scaling for the node pool
+                properties:
+                  maxCount:
+                    format: int32
+                    type: integer
+                  minCount:
+                    format: int32
+                    type: integer
+                type: object
             type: object
           status:
             description: GCPManagedMachinePoolStatus defines the observed state of
@@ -3196,7 +3228,9 @@ spec:
       containers:
       - args:
         - --leader-elect
+        - --feature-gates=GKE=${EXP_CAPG_GKE:=false}
         - --metrics-bind-addr=localhost:8080
+        - --v=${CAPG_LOGLEVEL:=0}
         env:
         - name: NODE_NAME
           valueFrom:
@@ -3210,7 +3244,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: gcr.io/spectro-dev-public/cluster-api-gcp/cluster-api-gcp-controller:20230131
+        image: gcr.io/spectro-dev-public/cluster-api-gcp/cluster-api-gcp-controller:20230323
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -3279,6 +3313,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: capi-webhook-system/capg-serving-cert
+  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-gcp
   name: capg-mutating-webhook-configuration
@@ -3433,6 +3468,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: capi-webhook-system/capg-serving-cert
+  creationTimestamp: null
   labels:
     cluster.x-k8s.io/provider: infrastructure-gcp
   name: capg-validating-webhook-configuration

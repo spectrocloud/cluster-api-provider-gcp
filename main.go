@@ -147,19 +147,23 @@ func main() {
 	// Setup the context that's going to be used in controllers and for the manager.
 	ctx := ctrl.SetupSignalHandler()
 
-	if setupErr := setupReconcilers(ctx, mgr); setupErr != nil {
-		setupLog.Error(err, "unable to setup reconcilers")
-		os.Exit(1)
+	if webhookPort == 0 {
+		if setupErr := setupReconcilers(ctx, mgr); setupErr != nil {
+			setupLog.Error(err, "unable to setup reconcilers")
+			os.Exit(1)
+		}
 	}
 
-	if setupErr := setupWebhooks(mgr); setupErr != nil {
-		setupLog.Error(err, "unable to setup webhooks")
-		os.Exit(1)
-	}
+	if webhookPort != 0 {
+		if setupErr := setupWebhooks(mgr); setupErr != nil {
+			setupLog.Error(err, "unable to setup webhooks")
+			os.Exit(1)
+		}
 
-	if setupErr := setupProbes(mgr); setupErr != nil {
-		setupLog.Error(err, "unable to setup probes")
-		os.Exit(1)
+		if setupErr := setupProbes(mgr); setupErr != nil {
+			setupLog.Error(err, "unable to setup probes")
+			os.Exit(1)
+		}
 	}
 
 	// +kubebuilder:scaffold:builder
@@ -344,7 +348,7 @@ func initFlags(fs *pflag.FlagSet) {
 
 	fs.IntVar(&webhookPort,
 		"webhook-port",
-		9443,
+		0,
 		"Webhook Server port",
 	)
 

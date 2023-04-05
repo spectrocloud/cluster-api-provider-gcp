@@ -37,6 +37,13 @@ type GCPManagedMachinePoolSpec struct {
 	// Scaling specifies scaling for the node pool
 	// +optional
 	Scaling *NodePoolAutoScaling `json:"scaling,omitempty"`
+	// InstanceType is the type of instance to create. Example: n1.standard-2, default is e2-medium
+	// +optional
+	InstanceType string `json:"instanceType,omitempty"`
+	// RootDeviceSize is the size of the root volume in GB.
+	// Defaults to 100.
+	// +optional
+	RootDeviceSize int32 `json:"rootDeviceSize,omitempty"`
 	// KubernetesLabels specifies the labels to apply to the nodes of the node pool.
 	// +optional
 	KubernetesLabels infrav1.Labels `json:"kubernetesLabels,omitempty"`

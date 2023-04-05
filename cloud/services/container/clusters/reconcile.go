@@ -19,7 +19,7 @@ package clusters
 import (
 	"context"
 	"fmt"
-
+	"github.com/blang/semver/v4"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/services/shared"
 
@@ -130,7 +130,7 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 		return ctrl.Result{}, statusErr
 	}
 
-	needUpdate, updateClusterRequest := s.checkDiffAndPrepareUpdate(cluster)
+	needUpdate, updateClusterRequest := s.checkDiffAndPrepareUpdate(ctx, cluster)
 	if needUpdate {
 		log.Info("Update required")
 		err = s.updateCluster(ctx, updateClusterRequest, &log)
@@ -246,16 +246,28 @@ func (s *Service) createCluster(ctx context.Context, log *logr.Logger) error {
 		Autopilot: &containerpb.Autopilot{
 			Enabled: s.scope.GCPManagedControlPlane.Spec.EnableAutopilot,
 		},
-		ReleaseChannel: &containerpb.ReleaseChannel{
-			Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
-		},
+		//ReleaseChannel: &containerpb.ReleaseChannel{
+		//	Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
+		//},
 	}
+	if s.scope.GCPManagedControlPlane.Spec.ReleaseChannel != nil {
+		cluster.ReleaseChannel = &containerpb.ReleaseChannel{
+			Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
+		}
+	}
+
 	if s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != nil {
 		cluster.InitialClusterVersion = *s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion
 	}
 	if !s.scope.IsAutopilotCluster() {
 		cluster.NodePools = scope.ConvertToSdkNodePools(nodePools, machinePools, isRegional)
 	}
+
+	if len(s.scope.GCPManagedCluster.Spec.Network.Subnets) > 0 {
+		cluster.Subnetwork = s.scope.GCPManagedCluster.Spec.Network.Subnets[0].Name
+	}
+
+	log.V(0).Info("cluster In", "version", cluster.InitialClusterVersion)
 
 	createClusterRequest := &containerpb.CreateClusterRequest{
 		Cluster: cluster,
@@ -311,21 +323,48 @@ func convertToSdkReleaseChannel(channel *infrav1exp.ReleaseChannel) containerpb.
 	}
 }
 
-func (s *Service) checkDiffAndPrepareUpdate(existingCluster *containerpb.Cluster) (bool, *containerpb.UpdateClusterRequest) {
+func (s *Service) checkDiffAndPrepareUpdate(ctx context.Context, existingCluster *containerpb.Cluster) (bool, *containerpb.UpdateClusterRequest) {
+	log := log.FromContext(ctx).WithValues("service", "container.clusters", "upgrader", "version release")
+	log.Info("Checking cluster upgrade")
 	needUpdate := false
 	clusterUpdate := containerpb.ClusterUpdate{}
 	// Release channel
 	desiredReleaseChannel := convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel)
-	if desiredReleaseChannel != existingCluster.ReleaseChannel.Channel {
+	if existingCluster.ReleaseChannel != nil && desiredReleaseChannel != existingCluster.ReleaseChannel.Channel {
 		needUpdate = true
+		log.V(0).Info("release channel changed",
+			"current", existingCluster.ReleaseChannel.Channel,
+			"desired", desiredReleaseChannel)
 		clusterUpdate.DesiredReleaseChannel = &containerpb.ReleaseChannel{
 			Channel: desiredReleaseChannel,
 		}
 	}
 	// Master version
-	if s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != nil && *s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != existingCluster.InitialClusterVersion {
-		needUpdate = true
-		clusterUpdate.DesiredMasterVersion = *s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion
+	if s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != nil {
+		existingVersion := semver.MustParse(existingCluster.InitialClusterVersion)
+
+		s.scope.ManagedControlPlaneClient()
+
+		if existingCluster.GetCurrentMasterVersion() != "" && existingCluster.InitialClusterVersion != existingCluster.CurrentMasterVersion {
+			existingVersion = semver.MustParse(existingCluster.CurrentMasterVersion)
+		}
+
+		controlPlaneVersion := semver.MustParse(*s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion)
+
+		if len(controlPlaneVersion.Pre) > 0 && existingVersion.EQ(controlPlaneVersion) {
+			needUpdate = true
+		} else {
+			if controlPlaneVersion.FinalizeVersion() != existingVersion.FinalizeVersion() {
+				needUpdate = true
+			}
+		}
+
+		if needUpdate {
+			log.V(0).Info("ControlPlaneVersion changed",
+				"current", existingVersion.String(),
+				"desired", controlPlaneVersion.String())
+			clusterUpdate.DesiredMasterVersion = *s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion
+		}
 	}
 	updateClusterRequest := containerpb.UpdateClusterRequest{
 		Name:   s.scope.ClusterFullName(),

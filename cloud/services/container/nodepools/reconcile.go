@@ -19,6 +19,7 @@ package nodepools
 import (
 	"context"
 	"fmt"
+	"github.com/blang/semver/v4"
 	"reflect"
 
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
@@ -127,7 +128,7 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	needUpdateVersionOrImage, nodePoolUpdateVersionOrImage := s.checkDiffAndPrepareUpdateVersionOrImage(nodePool)
+	needUpdateVersionOrImage, nodePoolUpdateVersionOrImage := s.checkDiffAndPrepareUpdateVersionOrImage(nodePool, log)
 	if needUpdateVersionOrImage {
 		log.Info("Version/image update required")
 		err = s.updateNodePoolVersionOrImage(ctx, nodePoolUpdateVersionOrImage)
@@ -329,19 +330,38 @@ func (s *Service) deleteNodePool(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) checkDiffAndPrepareUpdateVersionOrImage(existingNodePool *containerpb.NodePool) (bool, *containerpb.UpdateNodePoolRequest) {
+func (s *Service) checkDiffAndPrepareUpdateVersionOrImage(existingNodePool *containerpb.NodePool, log logr.Logger) (bool, *containerpb.UpdateNodePoolRequest) {
 	needUpdate := false
 	updateNodePoolRequest := containerpb.UpdateNodePoolRequest{
 		Name: s.scope.NodePoolFullName(),
 	}
 	// Node version
-	if s.scope.NodePoolVersion() != nil && *s.scope.NodePoolVersion() != existingNodePool.Version {
-		needUpdate = true
-		updateNodePoolRequest.NodeVersion = *s.scope.NodePoolVersion()
+
+	if s.scope.NodePoolVersion() != nil {
+		existingVersion := semver.MustParse(existingNodePool.Version)
+		nodePoolVersion := semver.MustParse(*s.scope.NodePoolVersion())
+
+		if len(nodePoolVersion.Pre) > 0 && existingVersion.EQ(nodePoolVersion) {
+			needUpdate = true
+		} else {
+			if nodePoolVersion.FinalizeVersion() != existingVersion.FinalizeVersion() {
+				needUpdate = true
+			}
+		}
+
+		if needUpdate {
+			log.V(0).Info("nodepool version changed",
+				"existing", existingNodePool.Version,
+				"required", s.scope.NodePoolVersion())
+			updateNodePoolRequest.NodeVersion = *s.scope.NodePoolVersion()
+		}
 	}
 	// Kubernetes labels
 	if !reflect.DeepEqual(map[string]string(s.scope.GCPManagedMachinePool.Spec.KubernetesLabels), existingNodePool.Config.Labels) {
 		needUpdate = true
+		log.V(0).Info("nodepool labels changed",
+			"existing", existingNodePool.Config.Labels,
+			"required", map[string]string(s.scope.GCPManagedMachinePool.Spec.KubernetesLabels))
 		updateNodePoolRequest.Labels = &containerpb.NodeLabels{
 			Labels: s.scope.GCPManagedMachinePool.Spec.KubernetesLabels,
 		}
@@ -350,10 +370,21 @@ func (s *Service) checkDiffAndPrepareUpdateVersionOrImage(existingNodePool *cont
 	desiredKubernetesTaints := infrav1exp.ConvertToSdkTaint(s.scope.GCPManagedMachinePool.Spec.KubernetesTaints)
 	if !reflect.DeepEqual(desiredKubernetesTaints, existingNodePool.Config.Taints) {
 		needUpdate = true
+		log.V(0).Info("nodepool version changed",
+			"existing", existingNodePool.Config.Taints,
+			"required", desiredKubernetesTaints)
 		updateNodePoolRequest.Taints = &containerpb.NodeTaints{
 			Taints: desiredKubernetesTaints,
 		}
 	}
+
+	if s.scope.GCPManagedMachinePool.Spec.InstanceType != "" && existingNodePool.Config.MachineType != s.scope.GCPManagedMachinePool.Spec.InstanceType {
+		needUpdate = true
+		log.V(0).Info("nodepool instancetype changed",
+			"existing", existingNodePool.Config.MachineType,
+			"required", s.scope.GCPManagedMachinePool.Spec.InstanceType)
+	}
+
 	return needUpdate, &updateNodePoolRequest
 }
 

@@ -19,6 +19,8 @@ package scope
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/pointer"
+	"strings"
 
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/location"
@@ -150,6 +152,11 @@ func (s *ManagedMachinePoolScope) InstanceGroupManagersClient() *compute.Instanc
 
 // NodePoolVersion returns the k8s version of the node pool.
 func (s *ManagedMachinePoolScope) NodePoolVersion() *string {
+	if s.MachinePool.Spec.Template.Spec.Version != nil {
+		version := strings.TrimPrefix(*s.MachinePool.Spec.Template.Spec.Version, "v")
+		return pointer.String(version)
+	}
+
 	return s.MachinePool.Spec.Template.Spec.Version
 }
 
@@ -180,7 +187,15 @@ func ConvertToSdkNodePool(nodePool infrav1exp.GCPManagedMachinePool, machinePool
 		}
 	}
 	if machinePool.Spec.Template.Spec.Version != nil {
-		sdkNodePool.Version = *machinePool.Spec.Template.Spec.Version
+		version := strings.TrimPrefix(*machinePool.Spec.Template.Spec.Version, "v")
+		sdkNodePool.Version = version
+	}
+	if nodePool.Spec.InstanceType != "" {
+		sdkNodePool.Config.MachineType = nodePool.Spec.InstanceType
+	}
+
+	if nodePool.Spec.RootDeviceSize != 0 {
+		sdkNodePool.Config.DiskSizeGb = nodePool.Spec.RootDeviceSize
 	}
 	return &sdkNodePool
 }

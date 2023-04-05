@@ -51,6 +51,10 @@ spec:
                   GCP resources managed by the GCP provider, in addition to the ones
                   added by default.
                 type: object
+              instanceType:
+                description: 'InstanceType is the type of instance to create. Example:
+                  n1.standard-2, default is e2-medium'
+                type: string
               kubernetesLabels:
                 additionalProperties:
                   type: string
@@ -95,6 +99,11 @@ spec:
                 items:
                   type: string
                 type: array
+              rootDeviceSize:
+                description: RootDeviceSize is the size of the root volume in GB.
+                  Defaults to 30.
+                format: int64
+                type: integer
               scaling:
                 description: Scaling specifies scaling for the node pool
                 properties:

@@ -108,18 +108,23 @@ func (s *Service) createUserKubeconfigSecret(ctx context.Context, cluster *conta
 		return fmt.Errorf("creating base kubeconfig: %w", err)
 	}
 
-	authProviderConfig := &api.AuthProviderConfig{
-		Name: "gcp",
-		Config: map[string]string{
-			"cmd-args":   "config config-helper --format=json",
-			"cmd-path":   "gcloud",
-			"expiry-key": "'{.credential.token_expiry}'",
-			"token-key":  "'{.credential.access_token}'",
-		},
-	}
+	//authProviderConfig := &api.AuthProviderConfig{
+	//	Name: "gcp",
+	//	Config: map[string]string{
+	//		"cmd-args":   "config config-helper --format=json",
+	//		"cmd-path":   "gcloud",
+	//		"expiry-key": "'{.credential.token_expiry}'",
+	//		"token-key":  "'{.credential.access_token}'",
+	//	},
+	//}
 	cfg.AuthInfos = map[string]*api.AuthInfo{
 		contextName: {
-			AuthProvider: authProviderConfig,
+			Exec: &api.ExecConfig{
+				Command:            "gke-gcloud-auth-plugin",
+				APIVersion:         "client.authentication.k8s.io/v1beta1",
+				InstallHint:        "Install gke-gcloud-auth-plugin for use with kubectl by following\n        https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke",
+				ProvideClusterInfo: true,
+			},
 		},
 	}
 

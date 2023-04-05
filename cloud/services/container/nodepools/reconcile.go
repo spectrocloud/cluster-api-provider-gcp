@@ -144,7 +144,7 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	needUpdateConfig, nodePoolUpdateConfigRequest := s.checkDiffAndPrepareUpdateConfig(nodePool)
+	needUpdateConfig, nodePoolUpdateConfigRequest := s.checkDiffAndPrepareUpdateConfig(nodePool, log)
 	if needUpdateConfig {
 		log.Info("Node pool config update required", "request", nodePoolUpdateConfigRequest)
 		err = s.updateNodePoolConfig(ctx, nodePoolUpdateConfigRequest)
@@ -345,7 +345,7 @@ func (s *Service) deleteNodePool(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) checkDiffAndPrepareUpdateConfig(existingNodePool *containerpb.NodePool) (bool, *containerpb.UpdateNodePoolRequest) {
+func (s *Service) checkDiffAndPrepareUpdateConfig(existingNodePool *containerpb.NodePool, log logr.Logger) (bool, *containerpb.UpdateNodePoolRequest) {
 	needUpdate := false
 	updateNodePoolRequest := containerpb.UpdateNodePoolRequest{
 		Name: s.scope.NodePoolFullName(),
@@ -365,6 +365,9 @@ func (s *Service) checkDiffAndPrepareUpdateConfig(existingNodePool *containerpb.
 	// Kubernetes labels
 	if !cmp.Equal(desiredNodePool.GetConfig().GetLabels(), existingNodePool.GetConfig().GetLabels()) {
 		needUpdate = true
+		log.V(0).Info("nodepool labels changed",
+			"existing", existingNodePool.Config.Labels,
+			"required", map[string]string(s.scope.GCPManagedMachinePool.Spec.KubernetesLabels))
 		updateNodePoolRequest.Labels = &containerpb.NodeLabels{
 			Labels: desiredNodePool.GetConfig().GetLabels(),
 		}
@@ -372,6 +375,9 @@ func (s *Service) checkDiffAndPrepareUpdateConfig(existingNodePool *containerpb.
 	// Kubernetes taints
 	if !cmp.Equal(desiredNodePool.GetConfig().GetTaints(), existingNodePool.GetConfig().GetTaints()) {
 		needUpdate = true
+		log.V(0).Info("nodepool version changed",
+			"existing", existingNodePool.Config.Taints,
+			"required", desiredNodePool.GetConfig().GetTaints())
 		updateNodePoolRequest.Taints = &containerpb.NodeTaints{
 			Taints: desiredNodePool.GetConfig().GetTaints(),
 		}
@@ -408,6 +414,13 @@ func (s *Service) checkDiffAndPrepareUpdateConfig(existingNodePool *containerpb.
 	if !cmp.Equal(desiredLinuxNodeConfig, existingNodePool.GetConfig().GetLinuxNodeConfig(), cmpopts.IgnoreUnexported(containerpb.LinuxNodeConfig{})) {
 		needUpdate = true
 		updateNodePoolRequest.LinuxNodeConfig = desiredLinuxNodeConfig
+	}
+
+	if s.scope.GCPManagedMachinePool.Spec.InstanceType != nil && existingNodePool.Config.MachineType != *s.scope.GCPManagedMachinePool.Spec.InstanceType {
+		needUpdate = true
+		log.V(0).Info("nodepool instancetype changed",
+			"existing", existingNodePool.Config.MachineType,
+			"required", s.scope.GCPManagedMachinePool.Spec.InstanceType)
 	}
 
 	return needUpdate, &updateNodePoolRequest

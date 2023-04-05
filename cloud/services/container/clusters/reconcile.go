@@ -259,10 +259,15 @@ func (s *Service) createCluster(ctx context.Context, log *logr.Logger) error {
 		Autopilot: &containerpb.Autopilot{
 			Enabled: s.scope.GCPManagedControlPlane.Spec.EnableAutopilot,
 		},
-		ReleaseChannel: &containerpb.ReleaseChannel{
-			Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
-		},
 		MasterAuthorizedNetworksConfig: convertToSdkMasterAuthorizedNetworksConfig(s.scope.GCPManagedControlPlane.Spec.MasterAuthorizedNetworksConfig),
+		//ReleaseChannel: &containerpb.ReleaseChannel{
+		//	Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
+		//},
+	}
+	if s.scope.GCPManagedControlPlane.Spec.ReleaseChannel != nil {
+		cluster.ReleaseChannel = &containerpb.ReleaseChannel{
+			Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
+		}
 	}
 	if s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != nil {
 		cluster.InitialClusterVersion = convertToSdkMasterVersion(*s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion)
@@ -298,6 +303,12 @@ func (s *Service) createCluster(ctx context.Context, log *logr.Logger) error {
 	if !s.scope.IsAutopilotCluster() {
 		cluster.NodePools = scope.ConvertToSdkNodePools(nodePools, machinePools, isRegional, cluster.GetName())
 	}
+
+	if len(s.scope.GCPManagedCluster.Spec.Network.Subnets) > 0 {
+		cluster.Subnetwork = s.scope.GCPManagedCluster.Spec.Network.Subnets[0].Name
+	}
+
+	log.V(0).Info("cluster In", "version", cluster.InitialClusterVersion)
 
 	createClusterRequest := &containerpb.CreateClusterRequest{
 		Cluster: cluster,

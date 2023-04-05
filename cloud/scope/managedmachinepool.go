@@ -153,6 +153,11 @@ func (s *ManagedMachinePoolScope) InstanceGroupManagersClient() *compute.Instanc
 
 // NodePoolVersion returns the k8s version of the node pool.
 func (s *ManagedMachinePoolScope) NodePoolVersion() *string {
+	if s.MachinePool.Spec.Template.Spec.Version != nil {
+		version := strings.TrimPrefix(*s.MachinePool.Spec.Template.Spec.Version, "v")
+		return ptr.To[string](version)
+	}
+
 	return s.MachinePool.Spec.Template.Spec.Version
 }
 

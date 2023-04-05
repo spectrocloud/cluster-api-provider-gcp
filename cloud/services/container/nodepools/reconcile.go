@@ -389,6 +389,11 @@ func (s *Service) checkDiffAndPrepareUpdateConfig(existingNodePool *containerpb.
 			Labels: desiredNodePool.GetConfig().GetResourceLabels(),
 		}
 	}
+
+	if s.scope.GCPManagedMachinePool.Spec.InstanceType != nil && existingNodePool.Config.MachineType != *(s.scope.GCPManagedMachinePool.Spec.InstanceType) {
+		needUpdate = true
+	}
+
 	// Locations
 	desiredLocations := s.scope.GCPManagedMachinePool.Spec.NodeLocations
 	if desiredLocations != nil && !cmp.Equal(desiredLocations, existingNodePool.GetLocations()) {

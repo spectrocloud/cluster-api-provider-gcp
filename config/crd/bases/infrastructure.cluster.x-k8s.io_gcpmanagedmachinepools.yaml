@@ -260,6 +260,11 @@ spec:
                 items:
                   type: string
                 type: array
+              rootDeviceSize:
+                description: RootDeviceSize is the size of the root volume in GB.
+                  Defaults to 30.
+                format: int64
+                type: integer
               scaling:
                 description: Scaling specifies scaling for the node pool
                 properties:

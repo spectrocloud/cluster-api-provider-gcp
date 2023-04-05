@@ -107,7 +107,7 @@ func (s *Service) createUserKubeconfigSecret(ctx context.Context, cluster *conta
 	if err != nil {
 		return fmt.Errorf("creating base kubeconfig: %w", err)
 	}
-
+	
 	execConfig := &api.ExecConfig{
 		APIVersion:         "client.authentication.k8s.io/v1beta1",
 		Command:            "gke-gcloud-auth-plugin",

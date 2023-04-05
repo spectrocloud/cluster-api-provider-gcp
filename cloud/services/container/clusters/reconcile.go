@@ -259,11 +259,17 @@ func (s *Service) createCluster(ctx context.Context, log *logr.Logger) error {
 		Autopilot: &containerpb.Autopilot{
 			Enabled: s.scope.GCPManagedControlPlane.Spec.EnableAutopilot,
 		},
-		ReleaseChannel: &containerpb.ReleaseChannel{
-			Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
-		},
+		//ReleaseChannel: &containerpb.ReleaseChannel{
+		//	Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
+		//},
 		MasterAuthorizedNetworksConfig: convertToSdkMasterAuthorizedNetworksConfig(s.scope.GCPManagedControlPlane.Spec.MasterAuthorizedNetworksConfig),
 	}
+	if s.scope.GCPManagedControlPlane.Spec.ReleaseChannel != nil {
+		cluster.ReleaseChannel = &containerpb.ReleaseChannel{
+			Channel: convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel),
+		}
+	}
+
 	if s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != nil {
 		cluster.InitialClusterVersion = convertToSdkMasterVersion(*s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion)
 	}
@@ -298,6 +304,12 @@ func (s *Service) createCluster(ctx context.Context, log *logr.Logger) error {
 	if !s.scope.IsAutopilotCluster() {
 		cluster.NodePools = scope.ConvertToSdkNodePools(nodePools, machinePools, isRegional, cluster.GetName())
 	}
+
+	if len(s.scope.GCPManagedCluster.Spec.Network.Subnets) > 0 {
+		cluster.Subnetwork = s.scope.GCPManagedCluster.Spec.Network.Subnets[0].Name
+	}
+
+	log.V(0).Info("cluster In", "version", cluster.InitialClusterVersion)
 
 	createClusterRequest := &containerpb.CreateClusterRequest{
 		Cluster: cluster,
@@ -408,14 +420,16 @@ func convertToSdkMasterAuthorizedNetworksConfig(config *infrav1exp.MasterAuthori
 
 func (s *Service) checkDiffAndPrepareUpdate(existingCluster *containerpb.Cluster, log *logr.Logger) (bool, *containerpb.UpdateClusterRequest) {
 	log.V(4).Info("Checking diff and preparing update.")
-
 	needUpdate := false
 	clusterUpdate := containerpb.ClusterUpdate{}
 	// Release channel
 	desiredReleaseChannel := convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel)
-	if desiredReleaseChannel != existingCluster.GetReleaseChannel().GetChannel() {
+	if existingCluster.ReleaseChannel != nil && desiredReleaseChannel != existingCluster.GetReleaseChannel().GetChannel() {
 		log.V(2).Info("Release channel update required", "current", existingCluster.GetReleaseChannel().GetChannel(), "desired", desiredReleaseChannel)
 		needUpdate = true
+		log.V(0).Info("release channel changed",
+			"current", existingCluster.ReleaseChannel.Channel,
+			"desired", desiredReleaseChannel)
 		clusterUpdate.DesiredReleaseChannel = &containerpb.ReleaseChannel{
 			Channel: desiredReleaseChannel,
 		}

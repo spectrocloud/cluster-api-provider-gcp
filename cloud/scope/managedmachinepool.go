@@ -19,6 +19,7 @@ package scope
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/pointer"
 	"strings"
 
 	"k8s.io/utils/ptr"
@@ -153,6 +154,11 @@ func (s *ManagedMachinePoolScope) InstanceGroupManagersClient() *compute.Instanc
 
 // NodePoolVersion returns the k8s version of the node pool.
 func (s *ManagedMachinePoolScope) NodePoolVersion() *string {
+	if s.MachinePool.Spec.Template.Spec.Version != nil {
+		version := strings.TrimPrefix(*s.MachinePool.Spec.Template.Spec.Version, "v")
+		return pointer.String(version)
+	}
+
 	return s.MachinePool.Spec.Template.Spec.Version
 }
 

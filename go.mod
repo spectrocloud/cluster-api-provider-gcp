@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/container v1.14.0
 	cloud.google.com/go/iam v0.13.0
 	github.com/GoogleCloudPlatform/k8s-cloud-provider v1.21.0
+	github.com/blang/semver/v4 v4.0.0
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-cmp v0.5.9
 	github.com/googleapis/gax-go/v2 v2.8.0
@@ -45,7 +46,6 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coredns/caddy v1.1.0 // indirect
 	github.com/coredns/corefile-migration v1.0.20 // indirect

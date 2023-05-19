@@ -209,7 +209,6 @@ func (r *GCPManagedClusterReconciler) reconcile(ctx context.Context, clusterScop
 	}
 
 	clusterScope.SetReady()
-	record.Event(clusterScope.GCPManagedCluster, "GCPManagedClusterReconcile", "Ready")
 
 	controlPlaneEndpoint := clusterScope.GCPManagedControlPlane.Spec.Endpoint
 	clusterScope.SetControlPlaneEndpoint(controlPlaneEndpoint)

@@ -112,14 +112,26 @@ GOTESTSUM := $(TOOLS_BIN_DIR)/$(GOTESTSUM_BIN)
 
 # Define Docker related variables. Releases should modify and double check these vars.
 export GCP_PROJECT ?= $(shell gcloud config get-value project)
-REGISTRY ?= gcr.io/$(GCP_PROJECT)
 STAGING_REGISTRY := gcr.io/k8s-staging-cluster-api-gcp
 PROD_REGISTRY := registry.k8s.io/cluster-api-gcp
 IMAGE_NAME ?= cluster-api-gcp-controller
 export CONTROLLER_IMG ?= gcr.io/spectro-dev-public/cluster-api-gcp/$(IMAGE_NAME)
-export TAG ?= $(shell date +'%Y%m%d')
-export ARCH ?= amd64
-ALL_ARCH = amd64 arm arm64 ppc64le s390x
+
+FIPS_ENABLE ?= ""
+
+RELEASE_LOC := release
+ifeq ($(FIPS_ENABLE),yes)
+  RELEASE_LOC := release-fips
+endif
+
+SPECTRO_VERSION ?= 4.0.0-dev
+TAG ?= v1.2.1-spectro-${SPECTRO_VERSION}
+
+
+ALL_ARCH = amd64
+#ALL_ARCH = amd64 arm arm64 ppc64le s390x
+REGISTRY ?= gcr.io/spectro-dev-public/$(USER)/${RELEASE_LOC}
+
 
 # Allow overriding manifest generation destination directory
 MANIFEST_ROOT ?= config
@@ -359,13 +371,13 @@ generate-manifests: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc.
 
 .PHONY: docker-build
 docker-build: ## Build the docker image for controller-manager
-	docker build --pull --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG):$(TAG)
-	MANIFEST_IMG=$(CONTROLLER_IMG) MANIFEST_TAG=$(TAG) $(MAKE) set-manifest-image
+	docker build --pull --build-arg CRYPTO_LIB=${FIPS_ENABLE} ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG)-$(ARCH):$(TAG)
+	MANIFEST_IMG=$(CONTROLLER_IMG)-$(ARCH) MANIFEST_TAG=$(TAG) $(MAKE) set-manifest-image
 	$(MAKE) set-manifest-pull-policy
 
 .PHONY: docker-push
 docker-push: ## Push the docker image
-	docker push $(CONTROLLER_IMG):$(TAG)
+	docker push $(CONTROLLER_IMG)-$(ARCH):$(TAG)
 
 .PHONY: e2e-image
 e2e-image:

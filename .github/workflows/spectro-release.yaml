@@ -24,7 +24,7 @@ jobs:
       -
         if: ${{ steps.checkTag.outputs.exists == 'true' }}
         run: |
-          echo "Tag already exists for spectro-v${{ github.event.inputs.release_version }}..."
+          echo "Tag already exists for v${{ github.event.inputs.release_version }}-spectro..."
           exit 1
       -
         uses: actions/checkout@v3

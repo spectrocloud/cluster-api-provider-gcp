@@ -116,7 +116,7 @@ export GCP_PROJECT ?= $(shell gcloud config get-value project)
 STAGING_REGISTRY := gcr.io/k8s-staging-cluster-api-gcp
 PROD_REGISTRY := registry.k8s.io/cluster-api-gcp
 IMAGE_NAME ?= cluster-api-gcp-controller
-export CONTROLLER_IMG ?= gcr.io/spectro-dev-public/cluster-api-gcp/$(IMAGE_NAME)
+export CONTROLLER_IMG ?= ${REGISTRY}/$(IMAGE_NAME)
 
 FIPS_ENABLE ?= ""
 

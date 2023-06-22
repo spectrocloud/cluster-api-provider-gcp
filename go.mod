@@ -1,6 +1,8 @@
 module sigs.k8s.io/cluster-api-provider-gcp
 
-go 1.21
+go 1.22
+
+toolchain go1.22.2
 
 replace (
 	// pinning cel-go due to a breaking change https://github.com/kubernetes/apiserver/issues/97

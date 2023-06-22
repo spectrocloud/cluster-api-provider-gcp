@@ -126,11 +126,11 @@ endif
 SPECTRO_VERSION ?= 4.0.0-dev
 TAG ?= v1.2.1-spectro-${SPECTRO_VERSION}
 
-
+REGISTRY ?= gcr.io/spectro-dev-public/$(USER)/${RELEASE_LOC}
 ALL_ARCH = amd64
 #ALL_ARCH = amd64 arm arm64 ppc64le s390x
 export CONTROLLER_IMG ?= ${REGISTRY}/$(IMAGE_NAME)
-REGISTRY ?= gcr.io/spectro-dev-public/$(USER)/${RELEASE_LOC}
+
 
 
 # Allow overriding manifest generation destination directory

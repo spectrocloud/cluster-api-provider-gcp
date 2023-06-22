@@ -1,5 +1,5 @@
 name: Spectro Release
-run-name: Release for Cluster API  AWS ${{ github.event.inputs.release_version }}
+run-name: Release for Cluster API  gcp ${{ github.event.inputs.release_version }}
 on:
   workflow_dispatch:
     inputs:
@@ -24,7 +24,7 @@ jobs:
       -
         if: ${{ steps.checkTag.outputs.exists == 'true' }}
         run: |
-          echo "Tag already exists for spectro-v${{ github.event.inputs.release_version }}..."
+          echo "Tag already exists for v${{ github.event.inputs.release_version }}-spectro..."
           exit 1
       -
         uses: actions/checkout@v3
@@ -41,7 +41,7 @@ jobs:
       -
         name: Build Image
         env:
-          DEV_REGISTRY: gcr.io/spectro-images-public/release/cluster-api-gcp
+          REGISTRY: gcr.io/spectro-images-public/release/cluster-api-gcp
         run: |
           make docker-build-all
           make docker-push-all
@@ -49,10 +49,10 @@ jobs:
         name: Build Image - FIPS Mode
         env:
           FIPS_ENABLE: yes
-          DEV_REGISTRY: gcr.io/spectro-images-public/release-fips/cluster-api-gcp
+          REGISTRY: gcr.io/spectro-images-public/release-fips/cluster-api-gcp
         run: |
-          make docker-build
-          make docker-push-gcr
+          make docker-build-all
+          make docker-push-all
       -
         name: Create Release
         id: create_release
@@ -61,7 +61,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ github.event.inputs.release_version }}-spectro
-          release_name: Release spectro-v${{ github.event.inputs.release_version }}
+          release_name: Release v${{ github.event.inputs.release_version }}-spectro
           body: |
             Release version ${{ github.event.inputs.release_version }}
           draft: false

@@ -20,6 +20,10 @@ WORKDIR /workspace
 ARG goproxy=https://proxy.golang.org
 ENV GOPROXY=$goproxy
 
+# FIPS
+ARG CRYPTO_LIB
+ENV GOEXPERIMENT=${CRYPTO_LIB:+boringcrypto}
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -33,9 +37,16 @@ COPY ./ ./
 # Build
 ARG ARCH
 ARG LDFLAGS
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} \
+RUN if [ ${CRYPTO_LIB} ]; \ 
+    then \
+    CGO_ENABLED=1 GOOS=linux GOARCH=${ARCH} \
+    go build -a -trimpath -ldflags "${LDFLAGS} -linkmode=external -extldflags '-static'" \
+    -o manager . ;\
+    else \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} \
     go build -a -trimpath -ldflags "${LDFLAGS} -extldflags '-static'" \
-    -o manager .
+    -o manager . ;\
+    fi
 
 # Copy the controller-manager into a thin image
 FROM gcr.io/distroless/static:latest

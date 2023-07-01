@@ -42,8 +42,7 @@ export DOCKER_CLI_EXPERIMENTAL := enabled
 
 # curl retries
 CURL_RETRIES=3
-ARG CRYPTO_LIB
-ENV GOEXPERIMENT=${CRYPTO_LIB:+boringcrypto}
+
 # Directories.
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TOOLS_DIR := hack/tools
@@ -127,11 +126,12 @@ endif
 SPECTRO_VERSION ?= 4.0.0-dev
 TAG ?= v1.2.1-spectro-${SPECTRO_VERSION}
 
-
+REGISTRY ?= gcr.io/spectro-dev-public/$(USER)/${RELEASE_LOC}
+ARCH ?= amd64
 ALL_ARCH = amd64
 #ALL_ARCH = amd64 arm arm64 ppc64le s390x
 export CONTROLLER_IMG ?= ${REGISTRY}/$(IMAGE_NAME)
-REGISTRY ?= gcr.io/spectro-dev-public/$(USER)/${RELEASE_LOC}
+
 
 
 # Allow overriding manifest generation destination directory
@@ -372,7 +372,7 @@ generate-manifests: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc.
 
 .PHONY: docker-build
 docker-build: ## Build the docker image for controller-manager
-	docker build --pull --build-arg CRYPTO_LIB=${FIPS_ENABLE} ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG)-$(ARCH):$(TAG)
+	docker build --build-arg CRYPTO_LIB=${FIPS_ENABLE}  --build-arg ARCH=$(ARCH)  --build-arg  LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG)-$(ARCH):$(TAG)
 	MANIFEST_IMG=$(CONTROLLER_IMG)-$(ARCH) MANIFEST_TAG=$(TAG) $(MAKE) set-manifest-image
 	$(MAKE) set-manifest-pull-policy
 

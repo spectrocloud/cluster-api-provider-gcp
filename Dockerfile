@@ -13,12 +13,19 @@
 # limitations under the License.
 
 # Build the manager binary
-FROM golang:1.19.8@sha256:dd9ad81920b63c7f9f18823d888d5fdcc7e7516086fd16654d07bc437f0e2427 as builder
+FROM golang:1.19.10-alpine3.18 as builder
 WORKDIR /workspace
 
 # Run this with docker build --build_arg $(go env GOPROXY) to override the goproxy
 ARG goproxy=https://proxy.golang.org
 ENV GOPROXY=$goproxy
+
+# FIPS
+ARG CRYPTO_LIB
+ENV GOEXPERIMENT=${CRYPTO_LIB:+boringcrypto}
+
+RUN apk update
+RUN apk add git gcc g++ curl
 
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -33,9 +40,16 @@ COPY ./ ./
 # Build
 ARG ARCH
 ARG LDFLAGS
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} \
+RUN if [ ${CRYPTO_LIB} ]; \ 
+    then \
+    CGO_ENABLED=1 GOOS=linux GOARCH=${ARCH} \
+    go build -a -trimpath -ldflags "${LDFLAGS} -linkmode=external -extldflags '-static'" \
+    -o manager . ;\
+    else \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} \
     go build -a -trimpath -ldflags "${LDFLAGS} -extldflags '-static'" \
-    -o manager .
+    -o manager . ;\
+    fi
 
 # Copy the controller-manager into a thin image
 FROM gcr.io/distroless/static:latest

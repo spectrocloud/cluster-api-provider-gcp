@@ -117,6 +117,8 @@ PROD_REGISTRY := registry.k8s.io/cluster-api-gcp
 IMAGE_NAME ?= cluster-api-gcp-controller
 
 FIPS_ENABLE ?= ""
+BUILDER_GOLANG_VERSION ?= 1.21
+BUILD_ARGS = --build-arg CRYPTO_LIB=${FIPS_ENABLE} --build-arg BUILDER_GOLANG_VERSION=${BUILDER_GOLANG_VERSION}
 
 RELEASE_LOC := release
 ifeq ($(FIPS_ENABLE),yes)
@@ -128,7 +130,7 @@ TAG ?= v1.2.1-spectro-${SPECTRO_VERSION}
 
 REGISTRY ?= gcr.io/spectro-dev-public/$(USER)/${RELEASE_LOC}
 ARCH ?= amd64
-ALL_ARCH = amd64
+ALL_ARCH = amd64 arm64
 #ALL_ARCH = amd64 arm arm64 ppc64le s390x
 CONTROLLER_IMG ?= ${REGISTRY}/$(IMAGE_NAME)
 
@@ -372,7 +374,7 @@ generate-manifests: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc.
 
 .PHONY: docker-build
 docker-build: ## Build the docker image for controller-manager
-	docker build --build-arg CRYPTO_LIB=${FIPS_ENABLE}  --build-arg ARCH=$(ARCH)  --build-arg  LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG)-$(ARCH):$(TAG)
+	docker buildx build --load --platform linux/${ARCH} ${BUILD_ARGS}  --build-arg ARCH=$(ARCH)  --build-arg  LDFLAGS="$(LDFLAGS)" . -t $(CONTROLLER_IMG)-$(ARCH):$(TAG)
 	MANIFEST_IMG=$(CONTROLLER_IMG)-$(ARCH) MANIFEST_TAG=$(TAG) $(MAKE) set-manifest-image
 	$(MAKE) set-manifest-pull-policy
 

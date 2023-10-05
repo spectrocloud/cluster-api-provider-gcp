@@ -1,6 +1,6 @@
 module sigs.k8s.io/cluster-api-provider-gcp
 
-go 1.19
+go 1.21
 
 require (
 	cloud.google.com/go/compute v1.18.0

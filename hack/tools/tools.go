@@ -1,5 +1,5 @@
-//go:build tools
-// +build tools
+//go:build capgtools
+// +build capgtools
 
 /*
 # Copyright 2022 The Kubernetes Authors.
@@ -19,4 +19,6 @@ package tools
 
 import (
 	_ "sigs.k8s.io/cluster-api/hack/tools/conversion-verifier"
+	_ "sigs.k8s.io/cluster-api/hack/tools/mdbook/embed"
+	_ "sigs.k8s.io/cluster-api/hack/tools/mdbook/releaselink"
 )

@@ -60,6 +60,8 @@ type ClusterGetter interface {
 	AdditionalLabels() infrav1.Labels
 	FailureDomains() clusterv1.FailureDomains
 	ControlPlaneEndpoint() clusterv1.APIEndpoint
+	ResourceManagerTags() infrav1.ResourceManagerTags
+	LoadBalancer() infrav1.LoadBalancerSpec
 }
 
 // ClusterSetter is an interface which can set cluster information.

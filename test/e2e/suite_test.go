@@ -31,18 +31,25 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
+	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/test/framework/ginkgoextensions"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
-	KubernetesVersion = "KUBERNETES_VERSION"
-	CNIPath           = "CNI"
-	CNIResources      = "CNI_RESOURCES"
+	KubernetesVersion           = "KUBERNETES_VERSION"
+	KubernetesVersionManagement = "KUBERNETES_VERSION_MANAGEMENT"
+
+	CNIPath      = "CNI"
+	CNIResources = "CNI_RESOURCES"
+	CCMPath      = "CCM"
+	CCMResources = "CCM_RESOURCES"
 )
 
 // Test suite flags.
@@ -104,6 +111,8 @@ func init() {
 func TestE2E(t *testing.T) {
 	g := NewWithT(t)
 
+	ctrl.SetLogger(klog.Background())
+
 	// If running in prow, make sure to use the artifacts folder that will be reported in test grid (ignoring the value provided by flag).
 	if prowArtifactFolder, exists := os.LookupEnv("ARTIFACTS"); exists {
 		artifactFolder = prowArtifactFolder
@@ -129,7 +138,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Before all ParallelNodes.
 
 	Expect(configPath).To(BeAnExistingFile(), "Invalid test suite argument. e2e.config should be an existing file.")
-	Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid test suite argument. Can't create e2e.artifacts-folder %q", artifactFolder)
+	Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid test suite argument. Can't create e2e.artifacts-folder %q", artifactFolder)
 
 	By("Initializing a runtime.Scheme with all the GVK relevant for this test")
 	scheme := initScheme()
@@ -186,6 +195,7 @@ func initScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	framework.TryAddDefaultSchemes(scheme)
 	Expect(infrav1.AddToScheme(scheme)).To(Succeed())
+	Expect(infrav1exp.AddToScheme(scheme)).To(Succeed())
 
 	return scheme
 }
@@ -209,6 +219,16 @@ func createClusterctlLocalRepository(config *clusterctl.E2EConfig, repositoryFol
 	Expect(cniPath).To(BeAnExistingFile(), "The %s variable should resolve to an existing file", capi_e2e.CNIPath)
 	createRepositoryInput.RegisterClusterResourceSetConfigMapTransformation(cniPath, capi_e2e.CNIResources)
 
+	// TODO: remove this when we run tests with ccm for < 1.28. in k8s 1.29+ it is required to use a ccm
+	if useCIArtifacts {
+		Expect(e2eConfig.Variables).To(HaveKey(CCMPath))
+		// Ensuring a CCM file is defined in the config and register a FileTransformation to inject the referenced file as in place of the CCM_RESOURCES envSubst variable.
+		Expect(config.Variables).To(HaveKey(CCMPath), "Missing %s variable in the config", CCMPath)
+		ccmPath := config.GetVariable(CCMPath)
+		Expect(ccmPath).To(BeAnExistingFile(), "The %s variable should resolve to an existing file", CCMPath)
+		createRepositoryInput.RegisterClusterResourceSetConfigMapTransformation(ccmPath, CCMResources)
+	}
+
 	clusterctlConfig := clusterctl.CreateRepository(context.TODO(), createRepositoryInput)
 	Expect(clusterctlConfig).To(BeAnExistingFile(), "The clusterctl config file does not exists in the local repository %s", repositoryFolder)
 
@@ -223,6 +243,7 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 			Name:               config.ManagementClusterName,
 			RequiresDockerSock: config.HasDockerProvider(),
 			Images:             config.Images,
+			KubernetesVersion:  config.GetVariable(KubernetesVersionManagement),
 		})
 		Expect(clusterProvider).ToNot(BeNil(), "Failed to create a bootstrap cluster")
 

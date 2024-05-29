@@ -59,7 +59,11 @@ gcloud compute routers nats create "${CLUSTER_NAME}-mynat" --project="${GCP_PROJ
 
 To create and manage clusters, this infrastructure provider uses a service account to authenticate with GCP's APIs.
 
-From your cloud console, follow [these instructions](https://cloud.google.com/iam/docs/creating-managing-service-accounts#creating) to create a new service account with `Editor` permissions. Afterwards, generate a JSON Key and store it somewhere safe.
+From your cloud console, follow [these instructions](https://cloud.google.com/iam/docs/creating-managing-service-accounts#creating) to create a new service account with `Editor` permissions.
+
+If you plan yo use GKE the the service account will also need the `iam.serviceAccountTokenCreator` role.
+
+Afterwards, generate a JSON Key and store it somewhere safe.
 
 ### Building images
 
@@ -79,10 +83,10 @@ git clone https://github.com/kubernetes-sigs/image-builder.git image-builder
 cd image-builder/images/capi
 
 # Run the Make target to generate GCE images.
-make build-gce-ubuntu-1804
+make build-gce-ubuntu-2004
 
 # Check that you can see the published images.
-gcloud compute images list --project ${GCP_PROJECT_ID} --no-standard-images --filter="family:capi-ubuntu-1804-k8s"
+gcloud compute images list --project ${GCP_PROJECT_ID} --no-standard-images --filter="family:capi-ubuntu-2004-k8s"
 
 # Export the IMAGE_ID from the above
 export IMAGE_ID="projects/${GCP_PROJECT_ID}/global/images/<image-name>"

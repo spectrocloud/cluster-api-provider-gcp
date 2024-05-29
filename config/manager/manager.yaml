@@ -21,13 +21,19 @@ spec:
       containers:
       - args:
         - --leader-elect
-        - "--metrics-bind-addr=localhost:8080"
+        - --feature-gates=GKE=${EXP_CAPG_GKE:=false}
+        - "--diagnostics-address=${CAPG_DIAGNOSTICS_ADDRESS:=:8443}"
+        - "--insecure-diagnostics=${CAPG_INSECURE_DIAGNOSTICS:=false}"
+        - "--v=${CAPG_LOGLEVEL:=0}"
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
         ports:
         - containerPort: 9440
           name: healthz
+          protocol: TCP
+        - containerPort: 8443
+          name: metrics
           protocol: TCP
         readinessProbe:
           httpGet:
@@ -41,6 +47,14 @@ spec:
             port: healthz
           initialDelaySeconds: 10
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          runAsUser: 65532
+          runAsGroup: 65532
         env:
         - name: NODE_NAME
           valueFrom:

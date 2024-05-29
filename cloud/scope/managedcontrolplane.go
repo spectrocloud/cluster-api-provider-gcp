@@ -19,17 +19,18 @@ package scope
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"google.golang.org/api/option"
+	"sigs.k8s.io/cluster-api-provider-gcp/util/location"
 
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	container "cloud.google.com/go/container/apiv1"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
+	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
 	"github.com/pkg/errors"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1exp "sigs.k8s.io/cluster-api/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,6 +44,7 @@ const (
 type ManagedControlPlaneScopeParams struct {
 	CredentialsClient      *credentials.IamCredentialsClient
 	ManagedClusterClient   *container.ClusterManagerClient
+	TagBindingsClient      *resourcemanager.TagBindingsClient
 	Client                 client.Client
 	Cluster                *clusterv1.Cluster
 	GCPManagedCluster      *infrav1exp.GCPManagedCluster
@@ -62,34 +64,28 @@ func NewManagedControlPlaneScope(ctx context.Context, params ManagedControlPlane
 		return nil, errors.New("failed to generate new scope from nil GCPManagedControlPlane")
 	}
 
-	var credentialData []byte
-	var credential *Credential
-	var err error
-	if params.GCPManagedCluster.Spec.CredentialsRef != nil {
-		credentialData, err = getCredentialDataFromRef(ctx, params.GCPManagedCluster.Spec.CredentialsRef, params.Client)
-	} else {
-		credentialData, err = getCredentialDataFromMount()
-	}
+	credential, err := getCredentials(ctx, params.GCPManagedCluster.Spec.CredentialsRef, params.Client)
 	if err != nil {
-		return nil, errors.Errorf("failed to get credential data: %v", err)
-	}
-
-	credential, err = parseCredential(credentialData)
-	if err != nil {
-		return nil, errors.Errorf("failed to parse credential data: %v", err)
+		return nil, fmt.Errorf("getting gcp credentials: %w", err)
 	}
 
 	if params.ManagedClusterClient == nil {
-		var managedClusterClient *container.ClusterManagerClient
-		managedClusterClient, err = container.NewClusterManagerClient(ctx, option.WithCredentialsJSON(credentialData))
+		managedClusterClient, err := newClusterManagerClient(ctx, params.GCPManagedCluster.Spec.CredentialsRef, params.Client)
 		if err != nil {
 			return nil, errors.Errorf("failed to create gcp managed cluster client: %v", err)
 		}
 		params.ManagedClusterClient = managedClusterClient
 	}
+	if params.TagBindingsClient == nil {
+		tagBindingsClient, err := newTagBindingsClient(ctx, params.GCPManagedCluster.Spec.CredentialsRef, params.Client, params.GCPManagedCluster.Spec.Region)
+		if err != nil {
+			return nil, errors.Errorf("failed to create gcp tag bindings client: %v", err)
+		}
+		params.TagBindingsClient = tagBindingsClient
+	}
 	if params.CredentialsClient == nil {
 		var credentialsClient *credentials.IamCredentialsClient
-		credentialsClient, err = credentials.NewIamCredentialsClient(ctx, option.WithCredentialsJSON(credentialData))
+		credentialsClient, err = newIamCredentialsClient(ctx, params.GCPManagedCluster.Spec.CredentialsRef, params.Client)
 		if err != nil {
 			return nil, errors.Errorf("failed to create gcp credentials client: %v", err)
 		}
@@ -107,6 +103,7 @@ func NewManagedControlPlaneScope(ctx context.Context, params ManagedControlPlane
 		GCPManagedCluster:      params.GCPManagedCluster,
 		GCPManagedControlPlane: params.GCPManagedControlPlane,
 		mcClient:               params.ManagedClusterClient,
+		tagBindingsClient:      params.TagBindingsClient,
 		credentialsClient:      params.CredentialsClient,
 		credential:             credential,
 		patchHelper:            helper,
@@ -122,8 +119,12 @@ type ManagedControlPlaneScope struct {
 	GCPManagedCluster      *infrav1exp.GCPManagedCluster
 	GCPManagedControlPlane *infrav1exp.GCPManagedControlPlane
 	mcClient               *container.ClusterManagerClient
+	tagBindingsClient      *resourcemanager.TagBindingsClient
 	credentialsClient      *credentials.IamCredentialsClient
 	credential             *Credential
+
+	AllMachinePools        []clusterv1exp.MachinePool
+	AllManagedMachinePools []infrav1exp.GCPManagedMachinePool
 }
 
 // PatchObject persists the managed control plane configuration and status.
@@ -142,6 +143,7 @@ func (s *ManagedControlPlaneScope) PatchObject() error {
 // Close closes the current scope persisting the managed control plane configuration and status.
 func (s *ManagedControlPlaneScope) Close() error {
 	s.mcClient.Close()
+	s.tagBindingsClient.Close()
 	s.credentialsClient.Close()
 	return s.PatchObject()
 }
@@ -161,6 +163,11 @@ func (s *ManagedControlPlaneScope) ManagedControlPlaneClient() *container.Cluste
 	return s.mcClient
 }
 
+// TagBindingsClient returns a client used to interact with resource manager tags.
+func (s *ManagedControlPlaneScope) TagBindingsClient() *resourcemanager.TagBindingsClient {
+	return s.tagBindingsClient
+}
+
 // CredentialsClient returns a client used to interact with IAM.
 func (s *ManagedControlPlaneScope) CredentialsClient() *credentials.IamCredentialsClient {
 	return s.credentialsClient
@@ -171,19 +178,36 @@ func (s *ManagedControlPlaneScope) GetCredential() *Credential {
 	return s.credential
 }
 
-func parseLocation(location string) (region string, zone *string) {
-	parts := strings.Split(location, "-")
-	region = strings.Join(parts[:2], "-")
-	if len(parts) == 3 {
-		return region, &parts[2]
+// GetAllNodePools gets all node pools for the control plane.
+func (s *ManagedControlPlaneScope) GetAllNodePools(ctx context.Context) ([]infrav1exp.GCPManagedMachinePool, []clusterv1exp.MachinePool, error) {
+	if s.AllManagedMachinePools == nil || len(s.AllManagedMachinePools) == 0 {
+		listOptions := []client.ListOption{
+			client.InNamespace(s.GCPManagedControlPlane.Namespace),
+			client.MatchingLabels(map[string]string{clusterv1.ClusterNameLabel: s.Cluster.Name}),
+		}
+
+		machinePoolList := &clusterv1exp.MachinePoolList{}
+		if err := s.client.List(ctx, machinePoolList, listOptions...); err != nil {
+			return nil, nil, err
+		}
+		managedMachinePoolList := &infrav1exp.GCPManagedMachinePoolList{}
+		if err := s.client.List(ctx, managedMachinePoolList, listOptions...); err != nil {
+			return nil, nil, err
+		}
+		if len(machinePoolList.Items) != len(managedMachinePoolList.Items) {
+			return nil, nil, fmt.Errorf("machinePoolList length (%d) != managedMachinePoolList length (%d)", len(machinePoolList.Items), len(managedMachinePoolList.Items))
+		}
+		s.AllMachinePools = machinePoolList.Items
+		s.AllManagedMachinePools = managedMachinePoolList.Items
 	}
-	return region, nil
+
+	return s.AllManagedMachinePools, s.AllMachinePools, nil
 }
 
 // Region returns the region of the GKE cluster.
 func (s *ManagedControlPlaneScope) Region() string {
-	region, _ := parseLocation(s.GCPManagedControlPlane.Spec.Location)
-	return region
+	loc, _ := location.Parse(s.GCPManagedControlPlane.Spec.Location)
+	return loc.Region
 }
 
 // ClusterLocation returns the location of the cluster.
@@ -196,10 +220,20 @@ func (s *ManagedControlPlaneScope) ClusterFullName() string {
 	return fmt.Sprintf("%s/clusters/%s", s.ClusterLocation(), s.GCPManagedControlPlane.Spec.ClusterName)
 }
 
+// ClusterName returns the name of the cluster.
+func (s *ManagedControlPlaneScope) ClusterName() string {
+	return s.GCPManagedControlPlane.Spec.ClusterName
+}
+
 // SetEndpoint sets the Endpoint of GCPManagedControlPlane.
 func (s *ManagedControlPlaneScope) SetEndpoint(host string) {
 	s.GCPManagedControlPlane.Spec.Endpoint = clusterv1.APIEndpoint{
 		Host: host,
 		Port: APIServerPort,
 	}
+}
+
+// IsAutopilotCluster returns true if this is an autopilot cluster.
+func (s *ManagedControlPlaneScope) IsAutopilotCluster() bool {
+	return s.GCPManagedControlPlane.Spec.EnableAutopilot
 }

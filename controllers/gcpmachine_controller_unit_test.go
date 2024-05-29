@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -33,7 +34,7 @@ func newMachine(clusterName, machineName string) *clusterv1.Machine {
 	return &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				clusterv1.ClusterLabelName: clusterName,
+				clusterv1.ClusterNameLabel: clusterName,
 			},
 			Name:      machineName,
 			Namespace: "default",
@@ -65,6 +66,8 @@ func newCluster(name string) *clusterv1.Cluster {
 func TestGCPMachineReconciler_GCPClusterToGCPMachines(t *testing.T) {
 	g := NewWithT(t)
 
+	ctx := context.TODO()
+
 	scheme := runtime.NewScheme()
 	g.Expect(infrav1.AddToScheme(scheme)).To(Succeed())
 	g.Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
@@ -85,7 +88,7 @@ func TestGCPMachineReconciler_GCPClusterToGCPMachines(t *testing.T) {
 	}
 
 	fn := reconciler.GCPClusterToGCPMachines(ctrl.SetupSignalHandler())
-	rr := fn(&infrav1.GCPCluster{
+	rr := fn(ctx, &infrav1.GCPCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: "default",

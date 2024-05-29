@@ -40,7 +40,8 @@ func TestGCPMachineTemplate_ValidateCreate(t *testing.T) {
 						Spec: GCPMachineSpec{
 							InstanceType:      "n2d-standard-4",
 							OnHostMaintenance: &onHostMaintenanceTerminate,
-						}},
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -54,7 +55,8 @@ func TestGCPMachineTemplate_ValidateCreate(t *testing.T) {
 							InstanceType:        "n2d-standard-4",
 							ConfidentialCompute: &confidentialComputeEnabled,
 							OnHostMaintenance:   &onHostMaintenanceTerminate,
-						}},
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -68,7 +70,8 @@ func TestGCPMachineTemplate_ValidateCreate(t *testing.T) {
 							InstanceType:        "n2d-standard-4",
 							ConfidentialCompute: &confidentialComputeEnabled,
 							OnHostMaintenance:   &onHostMaintenanceMigrate,
-						}},
+						},
+					},
 				},
 			},
 			wantErr: true,
@@ -81,7 +84,8 @@ func TestGCPMachineTemplate_ValidateCreate(t *testing.T) {
 						Spec: GCPMachineSpec{
 							InstanceType:        "n2d-standard-4",
 							ConfidentialCompute: &confidentialComputeEnabled,
-						}},
+						},
+					},
 				},
 			},
 			wantErr: true,
@@ -95,7 +99,8 @@ func TestGCPMachineTemplate_ValidateCreate(t *testing.T) {
 							InstanceType:        "e2-standard-4",
 							ConfidentialCompute: &confidentialComputeEnabled,
 							OnHostMaintenance:   &onHostMaintenanceTerminate,
-						}},
+						},
+					},
 				},
 			},
 			wantErr: true,
@@ -105,12 +110,13 @@ func TestGCPMachineTemplate_ValidateCreate(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			err := test.template.ValidateCreate()
+			warn, err := test.template.ValidateCreate()
 			if test.wantErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {
 				g.Expect(err).NotTo(HaveOccurred())
 			}
+			g.Expect(warn).To(BeNil())
 		})
 	}
 }

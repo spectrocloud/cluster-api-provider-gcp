@@ -39,6 +39,7 @@ type GCPManagedClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+
 	// NetworkSpec encapsulates all things related to the GCP network.
 	// +optional
 	Network infrav1.NetworkSpec `json:"network"`
@@ -48,10 +49,20 @@ type GCPManagedClusterSpec struct {
 	// +optional
 	AdditionalLabels infrav1.Labels `json:"additionalLabels,omitempty"`
 
+	// ResourceManagerTags is an optional set of tags to apply to GCP resources managed
+	// by the GCP provider. GCP supports a maximum of 50 tags per resource.
+	// +maxItems=50
+	// +optional
+	ResourceManagerTags infrav1.ResourceManagerTags `json:"resourceManagerTags,omitempty"`
+
 	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
 	// +optional
 	CredentialsRef *infrav1.ObjectReference `json:"credentialsRef,omitempty"`
+
+	// LoadBalancerSpec contains configuration for one or more LoadBalancers.
+	// +optional
+	LoadBalancer infrav1.LoadBalancerSpec `json:"loadBalancer,omitempty"`
 }
 
 // GCPManagedClusterStatus defines the observed state of GCPManagedCluster.

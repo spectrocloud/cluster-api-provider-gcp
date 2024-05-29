@@ -30,7 +30,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/test/framework/kubetest"
@@ -54,12 +54,13 @@ var _ = Describe("Conformance Tests", func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
 		Expect(clusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. clusterctlConfigPath must be an existing file when calling %s spec", specName)
 		Expect(bootstrapClusterProxy).ToNot(BeNil(), "Invalid argument. bootstrapClusterProxy can't be nil when calling %s spec", specName)
-		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
+		Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 		Expect(kubetestConfigFilePath).ToNot(BeNil(), "Invalid argument. kubetestConfigFilePath can't be nil")
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 		Expect(e2eConfig.Variables).To(HaveKey(capi_e2e.KubernetesVersion))
 		Expect(e2eConfig.Variables).To(HaveKey(capi_e2e.CNIPath))
+		Expect(e2eConfig.Variables).To(HaveKey(CCMPath))
 
 		clusterName = fmt.Sprintf("capg-conf-%s", util.RandomString(6))
 
@@ -124,8 +125,8 @@ var _ = Describe("Conformance Tests", func() {
 				Namespace:                namespace.Name,
 				ClusterName:              clusterName,
 				KubernetesVersion:        kubernetesVersion,
-				ControlPlaneMachineCount: pointer.Int64Ptr(controlPlaneMachineCount),
-				WorkerMachineCount:       pointer.Int64Ptr(workerMachineCount),
+				ControlPlaneMachineCount: ptr.To[int64](controlPlaneMachineCount),
+				WorkerMachineCount:       ptr.To[int64](workerMachineCount),
 			},
 			WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 			WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),

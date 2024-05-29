@@ -14,6 +14,10 @@ Kubernetes-native declarative infrastructure for GCP.
 
 The [Cluster API](https://github.com/kubernetes-sigs/cluster-api) brings declarative Kubernetes-style APIs to cluster creation, configuration and management. The API itself is shared across multiple cloud providers allowing for true Google Cloud hybrid deployments of Kubernetes.
 
+## Documentation
+
+Please see our [book](https://cluster-api-gcp.sigs.k8s.io/) for in-depth documentation.
+
 ## Quick Start
 
 Checkout our [Cluster API Quick Start] to create your first Kubernetes cluster
@@ -50,10 +54,6 @@ Each version of Cluster API for Google Cloud will attempt to support at least tw
 
 ----
 
-## Documentation
-
-Presently, our docs can be found [here](https://github.com/kubernetes-sigs/cluster-api-provider-gcp/tree/main/docs).
-
 ## Getting Involved and Contributing
 
 Are you interested in contributing to cluster-api-provider-gcp? We, the maintainers 
@@ -80,10 +80,10 @@ If you have an active interest and you want to get involved, you have real power
 - Join the [SIG Cluster Lifecycle](https://groups.google.com/forum/#!forum/kubernetes-sig-cluster-lifecycle) Google Group for access to documents and calendars.
 - Participate in the conversations on [Kubernetes Discuss][kubernetes discuss]
 - Provider implementers office hours (CAPI)
-    - Weekly on Wednesdays @ 10:00 PT on [Zoom](https://zoom.us/j/861487554)
+    - Weekly on Wednesdays @ 10:00 am PT (Pacific Time) on [Zoom](https://zoom.us/j/861487554)
     - Previous meetings: \[ [notes][notes] | [recordings][recordings] \]
 - Cluster API Provider GCP office hours (CAPG)
-    - Monthly on first Thursday @ 10:00pm PT / 17:00 UTC on [Zoom](https://zoom.us/j/96963829102?pwd=WjBZcmwvZFZsUU93aVZieUk1L3FnZz09)
+    - Monthly on first Thursday @ 09:00 am PT (Pacific Time) on [Zoom](https://zoom.us/j/96963829102?pwd=WjBZcmwvZFZsUU93aVZieUk1L3FnZz09)
     - Previous meetings: [ [notes](http://bit.ly/k8s-capg-agenda)|[recordings](https://www.youtube.com/playlist?list=PL69nYSiGNLP29D0nYgAGWt1ZFqS9Z7lw4) ]
 
 ### Other ways to communicate with the contributors

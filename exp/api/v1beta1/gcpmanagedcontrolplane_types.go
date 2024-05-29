@@ -40,8 +40,9 @@ type GCPManagedControlPlaneSpec struct {
 	// will be created.
 	Location string `json:"location"`
 	// EnableAutopilot indicates whether to enable autopilot for this GKE cluster.
+	// +optional
 	EnableAutopilot bool `json:"enableAutopilot"`
-	// ReleaseChannel represents the release channel of the GKE cluster. If not specified, it defaults to `regular`.
+	// ReleaseChannel represents the release channel of the GKE cluster.
 	// +optional
 	ReleaseChannel *ReleaseChannel `json:"releaseChannel,omitempty"`
 	// ControlPlaneVersion represents the control plane version of the GKE cluster.
@@ -52,20 +53,40 @@ type GCPManagedControlPlaneSpec struct {
 	// Endpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	Endpoint clusterv1.APIEndpoint `json:"endpoint"`
+	// MasterAuthorizedNetworksConfig represents configuration options for master authorized networks feature of the GKE cluster.
+	// This feature is disabled if this field is not specified.
+	// +optional
+	MasterAuthorizedNetworksConfig *MasterAuthorizedNetworksConfig `json:"master_authorized_networks_config,omitempty"`
 }
 
 // GCPManagedControlPlaneStatus defines the observed state of GCPManagedControlPlane.
 type GCPManagedControlPlaneStatus struct {
+	// Ready denotes that the GCPManagedControlPlane API Server is ready to
+	// receive requests.
+	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
-	// Conditions specifies the cpnditions for the managed control plane
+	// Initialized is true when the control plane is available for initial contact.
+	// This may occur before the control plane is fully ready.
+	// +optional
+	Initialized bool `json:"initialized,omitempty"`
+
+	// Conditions specifies the conditions for the managed control plane
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+
+	// CurrentVersion shows the current version of the GKE control plane.
+	// +optional
+	CurrentVersion string `json:"currentVersion,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=gcpmanagedcontrolplanes,scope=Namespaced,categories=cluster-api,shortName=gcpmcp
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this GCPManagedControlPlane belongs"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Control plane is ready"
+// +kubebuilder:printcolumn:name="CurrentVersion",type="string",JSONPath=".status.currentVersion",description="The current Kubernetes version"
+// +kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.endpoint",description="API Endpoint",priority=1
 
 // GCPManagedControlPlane is the Schema for the gcpmanagedcontrolplanes API.
 type GCPManagedControlPlane struct {
@@ -97,6 +118,29 @@ const (
 	// Stable release channel.
 	Stable ReleaseChannel = "stable"
 )
+
+// MasterAuthorizedNetworksConfig contains configuration options for the master authorized networks feature.
+// Enabled master authorized networks will disallow all external traffic to access
+// Kubernetes master through HTTPS except traffic from the given CIDR blocks,
+// Google Compute Engine Public IPs and Google Prod IPs.
+type MasterAuthorizedNetworksConfig struct {
+	// cidr_blocks define up to 50 external networks that could access
+	// Kubernetes master through HTTPS.
+	// +optional
+	CidrBlocks []*MasterAuthorizedNetworksConfigCidrBlock `json:"cidr_blocks,omitempty"`
+	// Whether master is accessible via Google Compute Engine Public IP addresses.
+	// +optional
+	GcpPublicCidrsAccessEnabled *bool `json:"gcp_public_cidrs_access_enabled,omitempty"`
+}
+
+// MasterAuthorizedNetworksConfigCidrBlock contains an optional name and one CIDR block.
+type MasterAuthorizedNetworksConfigCidrBlock struct {
+	// display_name is an field for users to identify CIDR blocks.
+	DisplayName string `json:"display_name,omitempty"`
+	// cidr_block must be specified in CIDR notation.
+	// +kubebuilder:validation:Pattern=`^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?:\/([0-9]|[1-2][0-9]|3[0-2]))?$|^([a-fA-F0-9:]+:+)+[a-fA-F0-9]+\/[0-9]{1,3}$`
+	CidrBlock string `json:"cidr_block,omitempty"`
+}
 
 // GetConditions returns the control planes conditions.
 func (r *GCPManagedControlPlane) GetConditions() clusterv1.Conditions {

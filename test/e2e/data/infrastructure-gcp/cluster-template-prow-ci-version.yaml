@@ -5,6 +5,7 @@ metadata:
   name: "${CLUSTER_NAME}"
   labels:
     cni: "${CLUSTER_NAME}-crs-cni"
+    ccm: "${CLUSTER_NAME}-crs-ccm"
 spec:
   clusterNetwork:
     pods:
@@ -46,15 +47,15 @@ spec:
       nodeRegistration:
         name: '{{ ds.meta_data.local_hostname.split(".")[0] }}'
         kubeletExtraArgs:
-          cloud-provider: gce
+          cloud-provider: external
     clusterConfiguration:
       apiServer:
         timeoutForControlPlane: 20m
         extraArgs:
-          cloud-provider: gce
+          cloud-provider: external
       controllerManager:
         extraArgs:
-          cloud-provider: gce
+          cloud-provider: external
           allocate-node-cidrs: "false"
           v: "4"
       kubernetesVersion: ci/${CI_VERSION}
@@ -86,8 +87,8 @@ spec:
             CI_URL="https://storage.googleapis.com/k8s-release-dev/ci/$${CI_VERSION}/bin/linux/amd64"
             VERSION_WITHOUT_PREFIX="${CI_VERSION#v}"
             DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https curl
-            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-            echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main' > /etc/apt/sources.list.d/kubernetes.list
+            curl -fsSL https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
             apt-get update
             # replace . with \.
             VERSION_REGEX="${VERSION_WITHOUT_PREFIX//./\\.}"
@@ -111,24 +112,32 @@ spec:
             echo "* downloading package: $$CI_URL/$$CI_CONTAINER.$$CONTAINER_EXT"
             wget "$$CI_URL/$$CI_CONTAINER.$$CONTAINER_EXT" -O "$$CI_DIR/$$CI_CONTAINER.$$CONTAINER_EXT"
             $${SUDO} ctr -n k8s.io images import "$$CI_DIR/$$CI_CONTAINER.$$CONTAINER_EXT" || echo "* ignoring expected 'ctr images import' result"
-            $${SUDO} ctr -n k8s.io images tag k8s.gcr.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" k8s.gcr.io/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
-            $${SUDO} ctr -n k8s.io images tag k8s.gcr.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" gcr.io/k8s-staging-ci-images/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
+            $${SUDO} ctr -n k8s.io images tag registry.k8s.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" registry.k8s.io/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
+            $${SUDO} ctr -n k8s.io images tag registry.k8s.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" gcr.io/k8s-staging-ci-images/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
           done
         fi
         echo "* checking binary versions"
         echo "ctr version: " $(ctr version)
         echo "kubeadm version: " $(kubeadm version -o=short)
-        echo "kubectl version: " $(kubectl version --client=true --short=true)
+        echo "kubectl version: " $(kubectl version --client=true)
         echo "kubelet version: " $(kubelet --version)
         echo "$$LINE_SEPARATOR"
       owner: root:root
       path: /tmp/kubeadm-bootstrap.sh
       permissions: "0744"
+    - content: |
+        [Global]
+
+        project-id = "${GCP_PROJECT}"
+        network-name = "${GCP_NETWORK_NAME}"
+      owner: root:root
+      path: /etc/kubernetes/cloud.config
+      permissions: "0744"
     joinConfiguration:
       nodeRegistration:
         name: '{{ ds.meta_data.local_hostname.split(".")[0] }}'
         kubeletExtraArgs:
-          cloud-provider: gce
+          cloud-provider: external
     postKubeadmCommands: []
     preKubeadmCommands:
     - bash -c /tmp/kubeadm-bootstrap.sh
@@ -213,8 +222,8 @@ spec:
               CI_URL="https://storage.googleapis.com/k8s-release-dev/ci/$${CI_VERSION}/bin/linux/amd64"
               VERSION_WITHOUT_PREFIX="${CI_VERSION#v}"
               DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https curl
-              curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-              echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main' > /etc/apt/sources.list.d/kubernetes.list
+              curl -fsSL https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+              echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
               apt-get update
               # replace . with \.
               VERSION_REGEX="${VERSION_WITHOUT_PREFIX//./\\.}"
@@ -238,14 +247,14 @@ spec:
               echo "* downloading package: $$CI_URL/$$CI_CONTAINER.$$CONTAINER_EXT"
               wget "$$CI_URL/$$CI_CONTAINER.$$CONTAINER_EXT" -O "$$CI_DIR/$$CI_CONTAINER.$$CONTAINER_EXT"
               $${SUDO} ctr -n k8s.io images import "$$CI_DIR/$$CI_CONTAINER.$$CONTAINER_EXT" || echo "* ignoring expected 'ctr images import' result"
-              $${SUDO} ctr -n k8s.io images tag k8s.gcr.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" k8s.gcr.io/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
-              $${SUDO} ctr -n k8s.io images tag k8s.gcr.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" gcr.io/k8s-staging-ci-images/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
+              $${SUDO} ctr -n k8s.io images tag registry.k8s.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" registry.k8s.io/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
+              $${SUDO} ctr -n k8s.io images tag registry.k8s.io/$$CI_CONTAINER-amd64:"$${CI_VERSION//+/_}" gcr.io/k8s-staging-ci-images/$$CI_CONTAINER:"$${CI_VERSION//+/_}"
             done
           fi
           echo "* checking binary versions"
           echo "ctr version: " $(ctr version)
           echo "kubeadm version: " $(kubeadm version -o=short)
-          echo "kubectl version: " $(kubectl version --client=true --short=true)
+          echo "kubectl version: " $(kubectl version --client=true)
           echo "kubelet version: " $(kubelet --version)
           echo "$$LINE_SEPARATOR"
         owner: root:root
@@ -255,7 +264,7 @@ spec:
         nodeRegistration:
           name: '{{ ds.meta_data.local_hostname.split(".")[0] }}'
           kubeletExtraArgs:
-            cloud-provider: gce
+            cloud-provider: external
       preKubeadmCommands:
       - bash -c /tmp/kubeadm-bootstrap.sh
 ---
@@ -291,4 +300,23 @@ spec:
       cni: "${CLUSTER_NAME}-crs-cni"
   resources:
     - name: "${CLUSTER_NAME}-crs-cni"
+      kind: ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "${CLUSTER_NAME}-crs-ccm"
+data: ${CCM_RESOURCES}
+---
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: "${CLUSTER_NAME}-crs-ccm"
+spec:
+  strategy: ApplyOnce
+  clusterSelector:
+    matchLabels:
+      ccm: "${CLUSTER_NAME}-crs-ccm"
+  resources:
+    - name: "${CLUSTER_NAME}-crs-ccm"
       kind: ConfigMap

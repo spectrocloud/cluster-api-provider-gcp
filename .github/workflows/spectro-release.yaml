@@ -27,7 +27,7 @@ jobs:
           echo "Tag already exists for v${{ github.event.inputs.release_version }}-spectro..."
           exit 1
       -
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1

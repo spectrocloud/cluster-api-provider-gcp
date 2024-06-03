@@ -38,10 +38,17 @@ type routersInterface interface {
 	Delete(ctx context.Context, key *meta.Key, options ...k8scloud.Option) error
 }
 
+type subnetsInterface interface {
+	Get(ctx context.Context, key *meta.Key, options ...k8scloud.Option) (*compute.Subnetwork, error)
+	Insert(ctx context.Context, key *meta.Key, obj *compute.Subnetwork, options ...k8scloud.Option) error
+	Delete(ctx context.Context, key *meta.Key, options ...k8scloud.Option) error
+}
+
 // Scope is an interfaces that hold used methods.
 type Scope interface {
 	cloud.Cluster
 	NetworkSpec() *compute.Network
+	SubnetSpecs() []*compute.Subnetwork
 	NatRouterSpec() *compute.Router
 }
 
@@ -49,6 +56,7 @@ type Scope interface {
 type Service struct {
 	scope    Scope
 	networks networksInterface
+	subnets  subnetsInterface
 	routers  routersInterface
 }
 
@@ -60,5 +68,6 @@ func New(scope Scope) *Service {
 		scope:    scope,
 		networks: scope.Cloud().Networks(),
 		routers:  scope.Cloud().Routers(),
+		subnets:  scope.Cloud().Subnetworks(),
 	}
 }

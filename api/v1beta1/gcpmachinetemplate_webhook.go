@@ -68,17 +68,27 @@ func (r *GCPMachineTemplate) ValidateUpdate(old runtime.Object) (admission.Warni
 	newGCPMachineTemplateSpec := newGCPMachineTemplate["spec"].(map[string]interface{})
 	oldGCPMachineTemplateSpec := oldGCPMachineTemplate["spec"].(map[string]interface{})
 
+	newGCPMachineTemplateSpecTemplate := newGCPMachineTemplateSpec["template"].(map[string]interface{})
+	oldGCPMachineTemplateSpecTemplate := oldGCPMachineTemplateSpec["template"].(map[string]interface{})
+
+	newGCPMachineTemplateSpecTemplateSpec := newGCPMachineTemplateSpecTemplate["spec"].(map[string]interface{})
+	oldGCPMachineTemplateSpecTemplateSpec := oldGCPMachineTemplateSpecTemplate["spec"].(map[string]interface{})
+
 	// allow changes to providerID
-	delete(oldGCPMachineTemplateSpec, "providerID")
-	delete(newGCPMachineTemplateSpec, "providerID")
+	delete(oldGCPMachineTemplateSpecTemplateSpec, "providerID")
+	delete(newGCPMachineTemplateSpecTemplateSpec, "providerID")
 
 	// allow changes to additionalLabels
-	delete(oldGCPMachineTemplateSpec, "additionalLabels")
-	delete(newGCPMachineTemplateSpec, "additionalLabels")
+	delete(oldGCPMachineTemplateSpecTemplateSpec, "additionalLabels")
+	delete(newGCPMachineTemplateSpecTemplateSpec, "additionalLabels")
 
 	// allow changes to additionalNetworkTags
-	delete(oldGCPMachineTemplateSpec, "additionalNetworkTags")
-	delete(newGCPMachineTemplateSpec, "additionalNetworkTags")
+	delete(oldGCPMachineTemplateSpecTemplateSpec, "additionalNetworkTags")
+	delete(newGCPMachineTemplateSpecTemplateSpec, "additionalNetworkTags")
+
+	if oldGCPMachineTemplateSpecTemplateSpec["ipForwarding"] == nil {
+		delete(newGCPMachineTemplateSpecTemplateSpec, "ipForwarding")
+	}
 
 	if !reflect.DeepEqual(oldGCPMachineTemplateSpec, newGCPMachineTemplateSpec) {
 		return nil, apierrors.NewInvalid(GroupVersion.WithKind("GCPMachineTemplate").GroupKind(), r.Name, field.ErrorList{

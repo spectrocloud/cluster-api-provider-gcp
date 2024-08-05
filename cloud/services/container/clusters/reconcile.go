@@ -351,7 +351,10 @@ func (s *Service) checkDiffAndPrepareUpdate(ctx context.Context, existingCluster
 
 		controlPlaneVersion := semver.MustParse(*s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion)
 
-		if len(controlPlaneVersion.Pre) > 0 && existingVersion.EQ(controlPlaneVersion) {
+		if len(controlPlaneVersion.Pre) > 0 && existingVersion.LT(controlPlaneVersion) {
+			log.V(0).Info("pre-release version detected",
+				"current", existingVersion,
+				"desired", controlPlaneVersion)
 			needUpdate = true
 		} else {
 			if controlPlaneVersion.FinalizeVersion() != existingVersion.FinalizeVersion() {

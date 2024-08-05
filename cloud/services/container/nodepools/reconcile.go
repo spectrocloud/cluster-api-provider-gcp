@@ -341,10 +341,16 @@ func (s *Service) checkDiffAndPrepareUpdateVersionOrImage(existingNodePool *cont
 		existingVersion := semver.MustParse(existingNodePool.Version)
 		nodePoolVersion := semver.MustParse(*s.scope.NodePoolVersion())
 
-		if len(nodePoolVersion.Pre) > 0 && existingVersion.EQ(nodePoolVersion) {
+		if len(nodePoolVersion.Pre) > 0 && existingVersion.LT(nodePoolVersion) {
+			log.V(0).Info("pre-release version detected",
+				"current", existingVersion,
+				"desired", nodePoolVersion)
 			needUpdate = true
 		} else {
 			if nodePoolVersion.FinalizeVersion() != existingVersion.FinalizeVersion() {
+				log.V(0).Info("no pre-release version detected",
+					"current", existingVersion,
+					"desired", nodePoolVersion)
 				needUpdate = true
 			}
 		}

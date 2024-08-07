@@ -338,6 +338,11 @@ func (s *Service) checkDiffAndPrepareUpdate(ctx context.Context, existingCluster
 		clusterUpdate.DesiredReleaseChannel = &containerpb.ReleaseChannel{
 			Channel: desiredReleaseChannel,
 		}
+		updateClusterRequest := containerpb.UpdateClusterRequest{
+			Name:   s.scope.ClusterFullName(),
+			Update: &clusterUpdate,
+		}
+		return needUpdate, &updateClusterRequest
 	}
 	// Master version
 	if s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion != nil {
@@ -350,7 +355,6 @@ func (s *Service) checkDiffAndPrepareUpdate(ctx context.Context, existingCluster
 		}
 
 		controlPlaneVersion := semver.MustParse(*s.scope.GCPManagedControlPlane.Spec.ControlPlaneVersion)
-
 		if len(controlPlaneVersion.Pre) > 0 && existingVersion.LT(controlPlaneVersion) {
 			log.V(0).Info("pre-release version detected",
 				"current", existingVersion,

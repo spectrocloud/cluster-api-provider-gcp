@@ -330,11 +330,23 @@ func (s *Service) checkDiffAndPrepareUpdate(ctx context.Context, existingCluster
 	clusterUpdate := containerpb.ClusterUpdate{}
 	// Release channel
 	desiredReleaseChannel := convertToSdkReleaseChannel(s.scope.GCPManagedControlPlane.Spec.ReleaseChannel)
-	if existingCluster.ReleaseChannel != nil && desiredReleaseChannel != existingCluster.ReleaseChannel.Channel {
-		needUpdate = true
-		log.V(0).Info("release channel changed",
-			"current", existingCluster.ReleaseChannel.Channel,
-			"desired", desiredReleaseChannel)
+	// probably just run converttosdkreleasechannel on existingcluster.releasechannel as well
+	if existingCluster.ReleaseChannel != nil {
+		if desiredReleaseChannel != existingCluster.ReleaseChannel.Channel {
+			needUpdate = true
+			log.V(0).Info("release channel changed",
+				"current", existingCluster.ReleaseChannel.Channel,
+				"desired", desiredReleaseChannel)
+		}
+	} else {
+		if desiredReleaseChannel != containerpb.ReleaseChannel_UNSPECIFIED {
+			needUpdate = true
+			log.V(0).Info("release channel changed",
+				"current", nil,
+				"desired", desiredReleaseChannel)
+		}
+	}
+	if needUpdate == true {
 		clusterUpdate.DesiredReleaseChannel = &containerpb.ReleaseChannel{
 			Channel: desiredReleaseChannel,
 		}

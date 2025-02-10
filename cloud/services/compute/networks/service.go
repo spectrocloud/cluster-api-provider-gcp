@@ -33,9 +33,9 @@ type networksInterface interface {
 }
 
 type subnetworksInterface interface {
-	Get(ctx context.Context, key *meta.Key) (*compute.Subnetwork, error)
-	Insert(ctx context.Context, key *meta.Key, obj *compute.Subnetwork) error
-	Delete(ctx context.Context, key *meta.Key) error
+	Get(ctx context.Context, key *meta.Key, options ...k8scloud.Option) (*compute.Subnetwork, error)
+	Insert(ctx context.Context, key *meta.Key, obj *compute.Subnetwork, options ...k8scloud.Option) error
+	Delete(ctx context.Context, key *meta.Key, options ...k8scloud.Option) error
 }
 
 type routersInterface interface {
@@ -54,10 +54,10 @@ type Scope interface {
 
 // Service implements networks reconciler.
 type Service struct {
-	scope    Scope
-	networks networksInterface
+	scope       Scope
+	networks    networksInterface
 	subnetworks subnetworksInterface
-	routers  routersInterface
+	routers     routersInterface
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -70,9 +70,9 @@ func New(scope Scope) *Service {
 	}
 
 	return &Service{
-		scope:    scope,
-		networks: scopeCloud.Networks(),
-		routers:  scopeCloud.Routers(),
-		subnetworks: scope.Cloud().Subnetworks(),
+		scope:       scope,
+		networks:    scopeCloud.Networks(),
+		routers:     scopeCloud.Routers(),
+		subnetworks: scopeCloud.Subnetworks(),
 	}
 }

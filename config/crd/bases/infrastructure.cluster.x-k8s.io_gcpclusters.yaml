@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.17.1
   name: gcpclusters.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
@@ -151,18 +151,32 @@ spec:
                       in "auto" mode. When set to false, the VPC network is created in
                       "custom" mode.
 
-
                       An auto mode VPC network starts with one subnet per region. Each
                       subnet has a predetermined range as described in Auto mode VPC
                       network IP ranges.
 
-
                       Defaults to true.
                     type: boolean
+                  hostProject:
+                    description: HostProject is the name of the project hosting the
+                      shared VPC network resources.
+                    type: string
                   loadBalancerBackendPort:
                     description: Allow for configuration of load balancer backend
                       (useful for changing apiserver port)
                     format: int32
+                    type: integer
+                  mtu:
+                    default: 1460
+                    description: |-
+                      Mtu: Maximum Transmission Unit in bytes. The minimum value for this field is
+                      1300 and the maximum value is 8896. The suggested value is 1500, which is
+                      the default MTU used on the Internet, or 8896 if you want to use Jumbo
+                      frames. If unspecified, the value defaults to 1460.
+                      More info: https://pkg.go.dev/google.golang.org/api/compute/v1#Network
+                    format: int64
+                    maximum: 8896
+                    minimum: 1300
                     type: integer
                   name:
                     description: Name is the name of the network to be used.
@@ -206,7 +220,6 @@ spec:
                             If unspecified, the purpose defaults to PRIVATE_RFC_1918.
                             The enableFlowLogs field isn't supported with the purpose field set to INTERNAL_HTTPS_LOAD_BALANCER.
 
-
                             Possible values:
                               "INTERNAL_HTTPS_LOAD_BALANCER" - Subnet reserved for Internal
                             HTTP(S) Load Balancing.
@@ -235,6 +248,25 @@ spec:
                             SecondaryCidrBlocks defines secondary CIDR ranges,
                             from which secondary IP ranges of a VM may be allocated
                           type: object
+                        stackType:
+                          default: IPV4_ONLY
+                          description: |-
+                            StackType: The stack type for the subnet. If set to IPV4_ONLY, new VMs in
+                            the subnet are assigned IPv4 addresses only. If set to IPV4_IPV6, new VMs in
+                            the subnet can be assigned both IPv4 and IPv6 addresses. If not specified,
+                            IPV4_ONLY is used. This field can be both set at resource creation time and
+                            updated using patch.
+
+                            Possible values:
+                              "IPV4_IPV6" - New VMs in this subnet can have both IPv4 and IPv6
+                            addresses.
+                              "IPV4_ONLY" - New VMs in this subnet will only be assigned IPv4 addresses.
+                              "IPV6_ONLY" - New VMs in this subnet will only be assigned IPv6 addresses.
+                          enum:
+                          - IPV4_ONLY
+                          - IPV4_IPV6
+                          - IPV6_ONLY
+                          type: string
                       type: object
                     type: array
                 type: object
@@ -292,6 +324,36 @@ spec:
                   - value
                   type: object
                 type: array
+              serviceEndpoints:
+                description: |-
+                  ServiceEndpoints contains the custom GCP Service Endpoint urls for each applicable service.
+                  For instance, the user can specify a new endpoint for the compute service.
+                properties:
+                  compute:
+                    description: ComputeServiceEndpoint is the custom endpoint url
+                      for the Compute Service
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                  container:
+                    description: ContainerServiceEndpoint is the custom endpoint url
+                      for the Container Service
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                  iam:
+                    description: IAMServiceEndpoint is the custom endpoint url for
+                      the IAM Service
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                  resourceManager:
+                    description: ResourceManagerServiceEndpoint is the custom endpoint
+                      url for the Resource Manager Service
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                type: object
             required:
             - project
             - region
@@ -308,11 +370,11 @@ spec:
                     attributes:
                       additionalProperties:
                         type: string
-                      description: Attributes is a free form map of attributes an
+                      description: attributes is a free form map of attributes an
                         infrastructure provider might use or require.
                       type: object
                     controlPlane:
-                      description: ControlPlane determines if this failure domain
+                      description: controlPlane determines if this failure domain
                         is suitable for use by control plane machines.
                       type: boolean
                   type: object

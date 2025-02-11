@@ -37,7 +37,6 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/providerid"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/services/shared"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -92,6 +91,11 @@ type MachineScope struct {
 // Cloud returns initialized cloud.
 func (m *MachineScope) Cloud() cloud.Cloud {
 	return m.ClusterGetter.Cloud()
+}
+
+// NetworkCloud returns initialized network cloud.
+func (m *MachineScope) NetworkCloud() cloud.Cloud {
+	return m.ClusterGetter.NetworkCloud()
 }
 
 // Zone returns the FailureDomain for the GCPMachine.
@@ -196,7 +200,7 @@ func (m *MachineScope) SetFailureMessage(v error) {
 }
 
 // SetFailureReason sets the GCPMachine status failure reason.
-func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
+func (m *MachineScope) SetFailureReason(v string) {
 	m.GCPMachine.Status.FailureReason = &v
 }
 
@@ -244,6 +248,7 @@ func (m *MachineScope) InstanceImageSpec() *compute.AttachedDisk {
 			DiskType:            path.Join("zones", m.Zone(), "diskTypes", string(diskType)),
 			ResourceManagerTags: shared.ResourceTagConvert(context.TODO(), m.GCPMachine.Spec.ResourceManagerTags),
 			SourceImage:         sourceImage,
+			Labels:              m.ClusterGetter.AdditionalLabels().AddLabels(m.GCPMachine.Spec.AdditionalLabels),
 		},
 	}
 
@@ -319,7 +324,7 @@ func (m *MachineScope) InstanceAdditionalDiskSpec() []*compute.AttachedDisk {
 // InstanceNetworkInterfaceSpec returns compute network interface spec.
 func (m *MachineScope) InstanceNetworkInterfaceSpec() *compute.NetworkInterface {
 	networkInterface := &compute.NetworkInterface{
-		Network: path.Join("projects", m.ClusterGetter.Project(), "global", "networks", m.ClusterGetter.NetworkName()),
+		Network: path.Join("projects", m.ClusterGetter.NetworkProject(), "global", "networks", m.ClusterGetter.NetworkName()),
 	}
 
 	if m.GCPMachine.Spec.PublicIP != nil && *m.GCPMachine.Spec.PublicIP {
@@ -332,7 +337,7 @@ func (m *MachineScope) InstanceNetworkInterfaceSpec() *compute.NetworkInterface 
 	}
 
 	if m.GCPMachine.Spec.Subnet != nil {
-		networkInterface.Subnetwork = path.Join("regions", m.ClusterGetter.Region(), "subnetworks", *m.GCPMachine.Spec.Subnet)
+		networkInterface.Subnetwork = path.Join("projects", m.ClusterGetter.NetworkProject(), "regions", m.ClusterGetter.Region(), "subnetworks", *m.GCPMachine.Spec.Subnet)
 	}
 
 	return networkInterface
@@ -395,6 +400,16 @@ func (m *MachineScope) InstanceSpec(log logr.Logger) *compute.Instance {
 		Scheduling: &compute.Scheduling{
 			Preemptible: m.GCPMachine.Spec.Preemptible,
 		},
+	}
+	if m.GCPMachine.Spec.ProvisioningModel != nil {
+		switch *m.GCPMachine.Spec.ProvisioningModel {
+		case infrav1.ProvisioningModelSpot:
+			instance.Scheduling.ProvisioningModel = "SPOT"
+		case infrav1.ProvisioningModelStandard:
+			instance.Scheduling.ProvisioningModel = "STANDARD"
+		default:
+			log.Error(errors.New("Invalid value"), "Unknown ProvisioningModel value", "Spec.ProvisioningModel", *m.GCPMachine.Spec.ProvisioningModel)
+		}
 	}
 
 	instance.CanIpForward = true

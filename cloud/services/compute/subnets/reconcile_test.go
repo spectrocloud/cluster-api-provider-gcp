@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes Authors.
+Copyright 2024 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -72,6 +72,28 @@ var fakeGCPCluster = &infrav1.GCPCluster{
 	},
 }
 
+var fakeGCPClusterSharedVPC = &infrav1.GCPCluster{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "my-cluster",
+		Namespace: "default",
+	},
+	Spec: infrav1.GCPClusterSpec{
+		Project: "my-proj",
+		Region:  "us-central1",
+		Network: infrav1.NetworkSpec{
+			HostProject: ptr.To("my-shared-vpc-project"),
+			Subnets: infrav1.Subnets{
+				infrav1.SubnetSpec{
+					Name:      "workers",
+					CidrBlock: "10.0.0.1/28",
+					Region:    "us-central1",
+					Purpose:   ptr.To[string]("INTERNAL_HTTPS_LOAD_BALANCER"),
+				},
+			},
+		},
+	},
+}
+
 type testCase struct {
 	name            string
 	scope           func() Scope
@@ -89,6 +111,18 @@ func TestService_Reconcile(t *testing.T) {
 		Client:     fakec,
 		Cluster:    fakeCluster,
 		GCPCluster: fakeGCPCluster,
+		GCPServices: scope.GCPServices{
+			Compute: &compute.Service{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusterScopeSharedVpc, err := scope.NewClusterScope(context.TODO(), scope.ClusterScopeParams{
+		Client:     fakec,
+		Cluster:    fakeCluster,
+		GCPCluster: fakeGCPClusterSharedVPC,
 		GCPServices: scope.GCPServices{
 			Compute: &compute.Service{},
 		},
@@ -155,6 +189,18 @@ func TestService_Reconcile(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:  "subnet list error find issue shared vpc",
+			scope: func() Scope { return clusterScopeSharedVpc },
+			mockSubnetworks: &cloud.MockSubnetworks{
+				ProjectRouter: &cloud.SingleProjectRouter{ID: "my-proj"},
+				Objects:       map[meta.Key]*cloud.MockSubnetworksObj{},
+				GetHook: func(_ context.Context, _ *meta.Key, _ *cloud.MockSubnetworks, _ ...cloud.Option) (bool, *compute.Subnetwork, error) {
+					return true, &compute.Subnetwork{}, &googleapi.Error{Code: http.StatusBadRequest}
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -186,6 +232,18 @@ func TestService_Delete(t *testing.T) {
 		Client:     fakec,
 		Cluster:    fakeCluster,
 		GCPCluster: fakeGCPCluster,
+		GCPServices: scope.GCPServices{
+			Compute: &compute.Service{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusterScopeSharedVpc, err := scope.NewClusterScope(context.TODO(), scope.ClusterScopeParams{
+		Client:     fakec,
+		Cluster:    fakeCluster,
+		GCPCluster: fakeGCPClusterSharedVPC,
 		GCPServices: scope.GCPServices{
 			Compute: &compute.Service{},
 		},
@@ -232,6 +290,16 @@ func TestService_Delete(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name:  "subnet deletion with shared vpc",
+			scope: func() Scope { return clusterScopeSharedVpc },
+			mockSubnetworks: &cloud.MockSubnetworks{
+				ProjectRouter: &cloud.SingleProjectRouter{ID: "my-proj"},
+				DeleteError: map[meta.Key]error{
+					*meta.RegionalKey(fakeGCPCluster.Spec.Network.Subnets[0].Name, fakeGCPCluster.Spec.Region): &googleapi.Error{Code: http.StatusNotFound},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {

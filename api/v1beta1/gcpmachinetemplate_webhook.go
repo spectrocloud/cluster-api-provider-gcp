@@ -88,7 +88,7 @@ func (r *GCPMachineTemplate) ValidateUpdate(old runtime.Object) (admission.Warni
 	delete(newGCPMachineTemplateSpecTemplateSpec, "ipForwarding")
 
 	if !reflect.DeepEqual(oldGCPMachineTemplateSpecTemplateSpec, newGCPMachineTemplateSpecTemplateSpec) {
-		return apierrors.NewInvalid(GroupVersion.WithKind("GCPMachineTemplate").GroupKind(), r.Name, field.ErrorList{
+		return nil, apierrors.NewInvalid(GroupVersion.WithKind("GCPMachineTemplate").GroupKind(), r.Name, field.ErrorList{
 			field.Forbidden(field.NewPath("spec"), "cannot be modified"),
 		})
 	}

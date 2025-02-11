@@ -163,19 +163,19 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	if webhookPort == 0 {
-		if setupErr := setupReconcilers(ctx, mgr); setupErr != nil {
+		if err := setupReconcilers(ctx, mgr); err != nil {
 			setupLog.Error(err, "unable to setup reconcilers")
 			os.Exit(1)
 		}
 	}
 
 	if webhookPort != 0 {
-		if setupErr := setupWebhooks(mgr); setupErr != nil {
+		if err := setupWebhooks(mgr); err != nil {
 			setupLog.Error(err, "unable to setup webhooks")
 			os.Exit(1)
 		}
 
-		if setupErr := setupProbes(mgr); setupErr != nil {
+		if err := setupProbes(mgr); err != nil {
 			setupLog.Error(err, "unable to setup probes")
 			os.Exit(1)
 		}

@@ -57,10 +57,10 @@ type TLSOptions struct {
 }
 
 var (
-	scheme             = runtime.NewScheme()
-	setupLog           = ctrl.Log.WithName("setup")
-	diagnosticsOptions = flags.DiagnosticsOptions{}
-	tlsOptions         = TLSOptions{}
+	scheme         = runtime.NewScheme()
+	setupLog       = ctrl.Log.WithName("setup")
+	managerOptions = flags.ManagerOptions{}
+	tlsOptions     = TLSOptions{}
 )
 
 func init() {

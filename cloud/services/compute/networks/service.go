@@ -71,8 +71,8 @@ func New(scope Scope) *Service {
 
 	return &Service{
 		scope:    scope,
-		networks: scope.Cloud().Networks(),
-		routers:  scope.Cloud().Routers(),
-		subnets:  scope.Cloud().Subnetworks(),
+		networks: scopeCloud.Networks(),
+		routers:  scopeCloud.Routers(),
+		subnets:  scopeCloud.Subnetworks(),
 	}
 }

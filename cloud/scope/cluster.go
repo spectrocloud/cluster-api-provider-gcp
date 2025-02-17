@@ -232,11 +232,13 @@ func (s *ClusterScope) SubnetworkSpec() []*compute.Subnetwork {
 	var subnetworks []*compute.Subnetwork
 	for _, subnet := range s.GCPCluster.Spec.Network.Subnets {
 		subnetwork := &compute.Subnetwork{
-			EnableFlowLogs: *subnet.EnableFlowLogs,
-			IpCidrRange:    subnet.CidrBlock,
-			Name:           subnet.Name,
-			Network:        *s.Network().SelfLink,
-			Region:         subnet.Region,
+			IpCidrRange: subnet.CidrBlock,
+			Name:        subnet.Name,
+			Network:     *s.Network().SelfLink,
+			Region:      subnet.Region,
+		}
+		if subnet.EnableFlowLogs != nil {
+			subnetwork.EnableFlowLogs = *subnet.EnableFlowLogs
 		}
 		subnetworks = append(subnetworks, subnetwork)
 	}

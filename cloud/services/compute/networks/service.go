@@ -34,9 +34,9 @@ type networksInterface interface {
 }
 
 type subnetworksInterface interface {
-	Get(ctx context.Context, key *meta.Key) (*compute.Subnetwork, error)
-	Insert(ctx context.Context, key *meta.Key, obj *compute.Subnetwork) error
-	Delete(ctx context.Context, key *meta.Key) error
+	Get(ctx context.Context, key *meta.Key, options ...k8scloud.Option) (*compute.Subnetwork, error)
+	Insert(ctx context.Context, key *meta.Key, obj *compute.Subnetwork, options ...k8scloud.Option) error
+	Delete(ctx context.Context, key *meta.Key, options ...k8scloud.Option) error
 }
 
 type routersInterface interface {
@@ -46,10 +46,10 @@ type routersInterface interface {
 }
 
 type routesInterface interface {
-	Get(ctx context.Context, key *meta.Key) (*compute.Route, error)
-	Insert(ctx context.Context, key *meta.Key, obj *compute.Route) error
-	Delete(ctx context.Context, key *meta.Key) error
-	List(ctx context.Context, fl *filter.F) ([]*compute.Route, error)
+	Get(ctx context.Context, key *meta.Key, options ...k8scloud.Option) (*compute.Route, error)
+	Insert(ctx context.Context, key *meta.Key, obj *compute.Route, options ...k8scloud.Option) error
+	Delete(ctx context.Context, key *meta.Key, options ...k8scloud.Option) error
+	List(ctx context.Context, fl *filter.F, options ...k8scloud.Option) ([]*compute.Route, error)
 }
 
 // Scope is an interfaces that hold used methods.
@@ -79,9 +79,9 @@ func New(scope Scope) *Service {
 	}
 
 	return &Service{
-		scope:    scope,
-		networks: scopeCloud.Networks(),
-		routers:  scopeCloud.Routers(),
+		scope:       scope,
+		networks:    scopeCloud.Networks(),
+		routers:     scopeCloud.Routers(),
 		routes:      scopeCloud.Routes(),
 		subnetworks: scopeCloud.Subnetworks(),
 	}

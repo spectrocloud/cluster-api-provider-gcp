@@ -53,6 +53,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
@@ -173,21 +174,21 @@ func main() {
 
 	if webhookPort == 0 {
 		if setupErr := setupReconcilers(ctx, mgr); setupErr != nil {
-			setupLog.Error(err, "unable to setup reconcilers")
+			setupLog.Error(setupErr, "unable to setup reconcilers")
 			os.Exit(1)
 		}
 	}
 
 	if webhookPort != 0 {
 		if setupErr := setupWebhooks(mgr); setupErr != nil {
-			setupLog.Error(err, "unable to setup webhooks")
+			setupLog.Error(setupErr, "unable to setup webhooks")
 			os.Exit(1)
 		}
+	}
 
-		if setupErr := setupProbes(mgr); setupErr != nil {
-			setupLog.Error(err, "unable to setup probes")
-			os.Exit(1)
-		}
+	if setupErr := setupProbes(mgr); setupErr != nil {
+		setupLog.Error(setupErr, "unable to setup probes")
+		os.Exit(1)
 	}
 
 	// +kubebuilder:scaffold:builder
@@ -317,12 +318,33 @@ func setupWebhooks(mgr ctrl.Manager) error {
 }
 
 func setupProbes(mgr ctrl.Manager) error {
-	if err := mgr.AddReadyzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
-		return fmt.Errorf("creating ready check: %w", err)
-	}
+	// The webhook readyz/healthz probes call GetWebhookServer(), which registers
+	// the webhook server as a manager runnable — it then starts and eagerly loads
+	// /tmp/k8s-webhook-server/serving-certs/tls.crt. In controller mode
+	// (webhookPort == 0) no webhooks are registered and no serving cert is mounted
+	// (the fork runs the webhook server only in the dedicated webhook deployment),
+	// so gate these on webhookPort != 0. Without this the controller-mode pod
+	// crashes on the missing cert. Mirrors the spectro-capa v2.12.1 fork split.
+	if webhookPort != 0 {
+		if err := mgr.AddReadyzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
+			return fmt.Errorf("creating ready check: %w", err)
+		}
 
-	if err := mgr.AddHealthzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
-		return fmt.Errorf("creating health check: %w", err)
+		if err := mgr.AddHealthzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
+			return fmt.Errorf("creating health check: %w", err)
+		}
+	} else {
+		// Controller-only process: the webhook StartedChecker (above) would start the
+		// webhook server and require a serving cert that isn't mounted here. But the
+		// Deployment still probes /healthz and /readyz, so register a basic ping —
+		// otherwise those paths 404 and kubelet CrashLoops the pod.
+		if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
+			return fmt.Errorf("creating ready check: %w", err)
+		}
+
+		if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+			return fmt.Errorf("creating health check: %w", err)
+		}
 	}
 
 	return nil

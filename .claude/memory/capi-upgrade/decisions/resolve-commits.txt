@@ -1,0 +1,13 @@
+# ── INPUT (Gate-1, you edit) — SHAs to force-pick as PICK-RESOLVE (3-way-merged at execute). One per line; '#' = comment. See ../README.md ──
+# Explicit PICK-RESOLVE commits — one short SHA per line; # = comment.
+# Human-approved force-picks of conflicting commits (per Patch D):
+# the engine no longer emits NEEDS-DECISION; at execute, each row is
+# handed to capi-conflict-resolver for a 3-way merge (fork intent vs
+# target code vs upstream evolution). Resolver may drop fork behavior
+# → adds a Regression Watch entry; unresolved → NEEDS-HUMAN + INCOMPLETE.
+
+# --- PR #282 Gate-1 human decision (round 2, replan): PICK-RESOLVE ---
+e97ddf43   # Spectro CICD integration — conflict on Dockerfile, Makefile (mechanical)
+0c6fb0e0   # Resolved route delete issue — conflict on cloud/services/compute/networks/{reconcile,service}.go
+38428b73   # PCP-268 GCPMachineTemplate ref fix — conflict on webhooks/gcpmachinetemplate_webhook.go
+eb9fc94c   # Self-hosted runner changes — conflict on .github/workflows/spectro-release.yaml (downstream of e97ddf43)

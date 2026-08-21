@@ -1,0 +1,47 @@
+# ── INPUT (Gate-1, you edit) — authoritative SHA->category map: <sha> <category> [decision]. '#' = comment. See ../README.md ──
+# CAPG known-commits map — SHA  CAT  DECISION-HINT  note   (authoritative; derived from capi-upgrade.md)
+# Mandatory palette infra (NOT skip-listed -> PICK)
+49630da7  REGEN  SKIP        Spectro manifests -> vendorcrd-sync regenerates (Patch F; NOT cherry-picked)
+3efd0cd7  M   PICK           Exclusive webhook + reconcilers (:9443 split)
+e97ddf43  M   PICK-RESOLVE   Spectro CICD integration — force-pick of conflicting mandatory (PR #282)
+eb9fc94c  M   PICK-RESOLVE   Self-hosted runner changes — force-pick of conflicting mandatory (PR #282)
+ebb77a32  REGEN  SKIP        reviewer-applied: RBAC/ServiceAccount lands ONLY in spectro/base + spectro/generated/core-base.yaml (generated overlay) -> vendorcrd-sync regenerates it (Patch F), NOT a cherry-pick. Target already carries ServiceAccount manager. POST-CONDITION: vendorcrd-sync verify --provider gcp must show capg-manager SA + RBAC.
+# Fork-only features to replay (NOT skip-listed -> PICK)
+0c6fb0e0  F2  PICK-RESOLVE   Route-delete fix — force-pick of conflicting F2 (PR #282)
+38428b73  F2  PICK-RESOLVE   PCP-268 GCPMachineTemplate ref fix — force-pick of conflicting F2 (PR #282)
+49615abe  F2  PICK           PCP-1277 remove Ready event
+b5f20633  F2  PICK           Create backport.yaml — reviewer-cleared, human PICK (PR #282 Gate 1)
+# Deviated (F4 — force-picked with reviewer §3 selective-re-apply guidance)
+e41bf6ae  F4  PICK-RESOLVE   Instance Size support — selective re-apply per reviewer §3 (PR #282)
+# Version/CVE/go bumps (also in skip-commits.txt -> SKIP; category here for record accuracy)
+d60388ac  M*  SKIP           controller-runtime bump — superseded by target
+5de82ade  M*  SKIP           CVE fixes — re-scan on target
+ce141d51  M*  SKIP           go vuln fixes — superseded
+3a44b400  M*  SKIP           go/pkg vuln updates — superseded
+beb5582e  M*  SKIP           Go/builder bump — superseded
+5b7e0a5c  M*  SKIP           go version bump — superseded
+21359136  M*  SKIP           go version bump (release yaml) — superseded
+da80f8c6  M*  SKIP           Go 1.23.8 bump — superseded
+ef3e587d  M*  SKIP           dependabot actions/checkout — superseded
+b30a9407  M*  SKIP           dependabot actions/setup-go — superseded
+ca7e87b7  M*  SKIP           go.mod/go.sum churn only
+fa510a60  M*  SKIP           runner+gitignore churn (reverts mandatory runner)
+# Upstreamed subnet/dual-stack chain (also skip-listed -> SKIP; see capi-1.12-parity.md)
+01e06d72  F3  SKIP           Custom subnet — native in upstream subnets pkg
+d8e22c72  F3  SKIP           Managed-cluster subnet — native upstream
+5dff97d6  F3  SKIP           k8scloud.Option subnet iface — obsolete upstream
+8a9fbde4  F3  SKIP           EnableFlowLogs nil-check — upstream ptr.Deref
+615e368e  F3  SKIP           StackType subnet — native upstream
+2e9689fc  F3  SKIP           dual-stack types — native upstream
+# Confirmed already-upstream (also skip-listed -> SKIP)
+0deeaee4  F3  SKIP           rm caBundle — upstream already
+6e5d77aa  F3  SKIP           wrap nodepool err — upstream already
+21f949b2  F3  SKIP           k8s 1.29+ template — upstream past 1.29
+# Upstream docs/CI noise (also skip-listed -> SKIP)
+4807642a  F3  SKIP           codespell.yml — upstream
+85f81b9f  F3  SKIP           lint.yml — upstream
+72b022e1  F3  SKIP           link-check.yml — upstream
+ad62434c  F3  SKIP           docs e2e guide — upstream
+d7fdb038  F3  SKIP           docs link fix — upstream
+cf4d2449  F3  SKIP           docs clusterclass — upstream
+85a7d941  F3  SKIP           docs restructure — upstream

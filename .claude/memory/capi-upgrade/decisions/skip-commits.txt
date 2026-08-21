@@ -1,0 +1,69 @@
+# ── INPUT (Gate-1, you edit) — SHAs to SKIP / drop. One SHA per line; '#' = comment. See ../README.md ──
+# Explicit commits to SKIP during reconcile/apply (one short SHA per line; # = comment).
+# Skipped BEFORE cherry-pick, so they never produce a conflict.
+# Rationale: routine spectro maintenance — package/Go/CVE bumps that upstream v1.12.x
+# already carries at equal-or-higher versions (confirmed by go.mod/go.sum conflicts).
+
+# --- dependabot / CI chore bumps (already in upstream) ---
+ef3e587d   # chore: bump actions/checkout 4.2.1->4.2.2
+b30a9407   # chore: bump actions/setup-go 5.0.2->5.1.0
+
+# --- Go toolchain / builder bumps (target is on newer Go) ---
+da80f8c6   # Update Go to v1.23.8
+beb5582e   # Update Go and Builder Golang versions to 1.24.12
+21359136   # PCP-6027 Update go version in spectro release yaml
+5b7e0a5c   # PCP-6734 Update go version for build
+
+# --- CVE / vuln package fixes (deps already higher upstream) ---
+5de82ade   # PCP-4129 CVE Fixes
+ce141d51   # PCP-6734 Fix go vulns
+3a44b400   # PCP-6891 updated go version & packages for vulnerabilities
+
+# --- human-approved 2026-06-30 (was borderline; user OK'd dropping both) ---
+d60388ac   # PCP-5293 controller-runtime -> v0.20.4. CAUTION: carries controller code
+           #   adaptation, not just a dep bump. Target v1.12.x already uses newer cr (v0.22.5),
+           #   so the adaptation is presumed upstream — DRIFT-DIFF to confirm before final apply.
+ca7e87b7   # Merge PR #273 PCP-6787 (go.mod/go.sum churn only)
+
+# --- decided 2026-06-30: SKIP. Reverts the mandatory self-hosted runner (eb9fc94c) back
+#     to ubuntu-latest, brings unwanted go.mod/go.sum churn; only unique content is a
+#     trivial ".gitignore vendor/" line. Not worth the entanglement. ---
+fa510a60   # chore: .gitignore + runner change (#265)
+
+# === Added 2026-06-30 (capi-1.12 cycle) ============================================
+
+# --- F4 subnetwork / dual-stack chain: UPSTREAMED in v1.12.0, human-approved skip ---
+#     Upstream v1.12.0 implements custom subnetwork creation natively in a dedicated
+#     cloud/services/compute/subnets/ package, and StackType/dual-stack in scope+types.
+#     Spectro placed this logic in cloud/services/compute/networks/ -> would conflict.
+#     Decision: adopt upstream's native impl, do NOT replay spectro's variant.
+#     FUNCTIONALITY-LOSS REVIEW: see .claude/memory/capi-upgrade/capi-1.12-parity.md (review before release).
+01e06d72   # Subnetwork implementation for Custom network creation
+d8e22c72   # Subnetwork support for managed cluster
+5dff97d6   # Fix k8scloud.Option subnetwork/routes interfaces
+8a9fbde4   # nil check for EnableFlowLogs in subnet
+615e368e   # StackType / dual-stack subnet (StackType now native upstream)
+2e9689fc   # Adding the ability to enable dual stacks (types.go; native upstream)
+
+# --- resolved TBD: confirmed already in upstream v1.12.0 -> skip ---
+0deeaee4   # rm caBundle: upstream webhook_in_*.yaml already has no caBundle placeholder
+6e5d77aa   # wrap nodepool update/delete err: upstream nodepools/reconcile.go already wraps
+21f949b2   # Support k8s 1.29+: template-only (5 lines); upstream templates long past 1.29
+
+# --- upstream noise (docs / CI yml / dependabot): not spectro-specific, skip ---
+4807642a   # Update codespell.yml
+85f81b9f   # Update lint.yml
+72b022e1   # Update link-check.yml
+ad62434c   # docs: add new e2e guide to book
+d7fdb038   # docs: fix broken link after book restructure
+cf4d2449   # docs: add clusterclass guide
+85a7d941   # docs: restructure book sections
+
+# --- CVE/go-vuln fixes SKIPed per PCP-5299 Gate-1 human decision on PR #282
+# --- (reviewer verdict: superseded upstream by CAPI v1.12.8 dep bump; re-scan on Code PR) ---
+a1a437e1   # PCP-6734 Fix go vulns — go.mod/go.sum conflict; superseded by CAPI v1.12.8
+a7a2398b   # PCP-6787 Fix CVEs — go.mod/go.sum conflict; superseded by CAPI v1.12.8
+330f68d7   # PCP-6891 updated go version & packages — workflow yaml conflict; superseded upstream
+
+# --- human Gate-1 decision (PR #282, 2026-07-07) ---
+e41bf6ae  # human: DROP/SKIP — NodePoolVersion (*string->string) rewrite NOT carried; accepted behavior change vs core/v1beta2 MachinePool
